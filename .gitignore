@@ -1,0 +1,8 @@
+server/node_modules/
+server/.env
+server/data/vault.enc
+server/data/gateway.pid
+server/data/*.tmp
+.env
+logs/*.log
+*.log

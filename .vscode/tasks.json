@@ -1,0 +1,83 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "SORT: 状態確認",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File ${workspaceFolder}/scripts/manage.ps1 status",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "sort-gateway"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "SORT: サーバー起動",
+      "type": "shell",
+      "command": "node index.js",
+      "options": {
+        "cwd": "${workspaceFolder}/server"
+      },
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "sort-gateway",
+        "focus": true
+      },
+      "problemMatcher": {
+        "owner": "sort-gateway",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "SORT Gateway \\(secure\\)"
+        }
+      }
+    },
+    {
+      "label": "SORT: サーバー停止",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File ${workspaceFolder}/scripts/manage.ps1 stop",
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "group": "sort-gateway"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "SORT: 再起動",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File ${workspaceFolder}/scripts/manage.ps1 restart",
+      "dependsOn": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "sort-gateway"
+      },
+      "problemMatcher": {
+        "owner": "sort-gateway",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "SORT Gateway \\(secure\\)"
+        }
+      }
+    },
+    {
+      "label": "SORT: 開発一式（起動＋ブラウザ）",
+      "dependsOn": ["SORT: サーバー起動"],
+      "dependsOrder": "sequence",
+      "type": "shell",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File ${workspaceFolder}/scripts/manage.ps1 open",
+      "presentation": {
+        "reveal": "never",
+        "panel": "shared"
+      },
+      "problemMatcher": []
+    }
+  ]
+}
