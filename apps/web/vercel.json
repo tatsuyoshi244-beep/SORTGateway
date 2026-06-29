@@ -1,0 +1,13 @@
+{
+    "rewrites": [
+      {
+        "source": "/",
+        "destination": "/apps/web/index.html"
+      },
+      {
+        "source": "/assets/:path*",
+        "destination": "/apps/web/assets/:path*"
+      }
+    ]
+  }
+  

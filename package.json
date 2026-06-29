@@ -1,13 +1,13 @@
 {
   "name": "sort-gateway",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
-  "description": "Secure internal AI gateway (Codex rebuild)",
+  "description": "SORT Gateway monorepo",
   "scripts": {
-    "setup": "node server/scripts/setup-env.js",
-    "start": "node server/index.js",
-    "status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/manage.ps1 status",
-    "stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/manage.ps1 stop",
-    "open": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/manage.ps1 open"
+    "dev": "npm run dev --prefix apps/enterprise",
+    "build": "npm run build --prefix apps/enterprise",
+    "start:enterprise": "npm run start --prefix apps/enterprise",
+    "setup:legacy": "node server/scripts/setup-env.js",
+    "legacy:server": "node server/index.js"
   }
 }

@@ -4,5 +4,11 @@ server/data/vault.enc
 server/data/gateway.pid
 server/data/*.tmp
 .env
+.env.local
+.env*.local
 logs/*.log
 *.log
+apps/enterprise/.data/
+apps/enterprise/test-results/
+apps/enterprise/playwright-report/
+**/node_modules/
