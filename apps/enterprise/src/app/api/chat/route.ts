@@ -44,9 +44,9 @@ export async function POST(req: NextRequest) {
       user: auth.user,
       question: validated.message!,
       payload,
-    });
+    }}).catch(() => ({ id: 'demo-session' }));
 
-    await incrementChatUsage();
+    await incrementChatUsage().catch(() => 0);
     await recordChatSend(
       auth.user.id,
       auth.user.full_name,
