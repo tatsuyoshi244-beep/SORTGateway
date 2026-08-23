@@ -17,3 +17,4 @@ export function getBuildInfo() {
     node_env: NODE_ENV,
   };
 }
+// Vercel Enterprise deployment 2026-08-23
