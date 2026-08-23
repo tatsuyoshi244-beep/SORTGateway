@@ -1,13 +1,18 @@
-/** サーバー / クライアント共通の環境変数ヘルパー */
+/** サーバー / クライアント共通の環境ヘルパー */
 
 export function isProduction(): boolean {
-  return process.env.NODE_ENV === 'production';
+  return (
+    process.env.NODE_ENV === 'production' &&
+    process.env.NEXT_PUBLIC_DEMO_MODE !== 'true'
+  );
 }
+
 
 /** デモログイン・x-sort-session を許可するか（開発かつ Supabase 未設定のみ） */
 export function allowsDemoAuth(): boolean {
   return !isProduction() && !isSupabaseConfigured();
 }
+
 
 export function isSupabaseConfigured(): boolean {
   return !!(
