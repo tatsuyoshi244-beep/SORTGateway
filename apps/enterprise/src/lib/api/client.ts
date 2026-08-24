@@ -1,6 +1,6 @@
 'use client';
 
-import { encodeSessionHeader, SESSION_HEADER } from '@/lib/api/auth-guard';
+import { encodeSessionHeader } from '@/lib/api/session-codec';const SESSION_HEADER = 'x-sort-session';
 import { allowsDemoAuth, isProduction, isSupabaseConfigured } from '@/lib/env';
 import { createBrowserClient } from '@/lib/supabase/client';
 import type { SessionUser } from '@/types';
