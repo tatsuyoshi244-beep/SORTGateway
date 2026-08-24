@@ -7,7 +7,66 @@ import { freshnessScoreMultiplier } from '@/lib/knowledge/freshness';
 import { createServerClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/env';
 
+function normalizeSearchText(value: string): string {
+  return value
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\s\u3000、。,.!?！？「」『』（）()[\]【】]/g, '');
+}
+
+function buildSearchTerms(query: string): string[] {
+  const normalized = normalizeSearchText(query);
+
+  const core = normalized
+    .replace(/について教えてください$/, '')
+    .replace(/について教えて$/, '')
+    .replace(/について説明してください$/, '')
+    .replace(/について説明して$/, '')
+    .replace(/を教えてください$/, '')
+    .replace(/を教えて$/, '')
+    .replace(/とは何ですか$/, '')
+    .replace(/とは$/, '');
+
+  const terms = new Set<string>([normalized, core]);
+
+  if (core.length >= 4) {
+    for (let i = 0; i <= core.length - 4; i += 1) {
+      terms.add(core.slice(i, i + 4));
+    }
+  }
+
+  return [...terms].filter((term) => term.length >= 2);
+}
+
 function scoreItem(item: KnowledgeItem, query: string): number {
+  const normalizedQuery = normalizeSearchText(query);
+  const title = normalizeSearchText(item.title);
+  const content = normalizeSearchText(item.content);
+  const tags = item.tags.map(normalizeSearchText);
+  const terms = buildSearchTerms(query);
+
+  let score = 0;
+
+  for (const term of terms) {
+    if (title.includes(term)) score += term.length >= 6 ? 5 : 2;
+    if (content.includes(term)) score += 1;
+    if (tags.some((tag) => tag.includes(term))) score += 3;
+  }
+
+  const titleWithoutVersion = title.replace(
+    /(?:v)?[0-9]+(?:\.[0-9]+)?$/,
+    ''
+  );
+
+  if (
+    titleWithoutVersion.length >= 4 &&
+    normalizedQuery.includes(titleWithoutVersion)
+  ) {
+    score += 10;
+  }
+
+  return score * freshnessScoreMultiplier(item.updated_at);
+}: number {
   const q = query.toLowerCase();
   const words = q.split(/\s+/).filter((w) => w.length > 1);
   let score = 0;
