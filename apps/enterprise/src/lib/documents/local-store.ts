@@ -23,10 +23,9 @@ async function ensureDataDir(): Promise<void> {
   await fs.mkdir(path.join(process.cwd(), getLocalUploadDir()), { recursive: true });
   await fs.mkdir(dataDir(), { recursive: true });
 }
-
 async function readIndex(): Promise<LocalIndex> {
-  await ensureDataDir();
   try {
+
     const raw = await fs.readFile(indexPath(), 'utf-8');
     return JSON.parse(raw) as LocalIndex;
   } catch {
