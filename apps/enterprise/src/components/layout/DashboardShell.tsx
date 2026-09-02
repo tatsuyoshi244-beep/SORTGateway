@@ -61,7 +61,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
           <TenantSwitcher />
-          <Button variant="ghost" size="sm" onClick={() => setTokenModalOpen(true)}>
+          <Button variant="ghost" size="sm" className="shrink-0 whitespace-nowrap" onClick={() => setTokenModalOpen(true)}>
             <KeyRound className="h-4 w-4" />
             トークンパス入力
           </Button>
