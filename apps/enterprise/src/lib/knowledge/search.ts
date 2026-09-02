@@ -35,7 +35,7 @@ function buildSearchTerms(query: string): string[] {
     }
   }
 
-  return [...terms].filter((term) => term.length >= 2);
+  return Array.from(terms).filter((term) => term.length >= 2);
 }
 
 function scoreItem(item: KnowledgeItem, query: string): number {
@@ -66,20 +66,9 @@ function scoreItem(item: KnowledgeItem, query: string): number {
   }
 
   return score * freshnessScoreMultiplier(item.updated_at);
-}: number {
-  const q = query.toLowerCase();
-  const words = q.split(/\s+/).filter((w) => w.length > 1);
-  let score = 0;
-  const title = item.title.toLowerCase();
-  const content = item.content.toLowerCase();
-  for (const w of words) {
-    if (title.includes(w)) score += 3;
-    if (content.includes(w)) score += 1;
-    if (item.tags.some((t) => t.toLowerCase().includes(w))) score += 2;
-  }
-  if (title.includes(q)) score += 5;
-  return score * freshnessScoreMultiplier(item.updated_at);
 }
+  
+  
 
 function filterByAccess(
   items: KnowledgeItem[],
