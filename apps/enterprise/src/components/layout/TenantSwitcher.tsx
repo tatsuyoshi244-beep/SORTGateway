@@ -38,7 +38,7 @@ export function TenantSwitcher() {
       {user.tenant_company_id && (
         <button
           type="button"
-          className="text-xs text-slate-500 hover:text-slate-700"
+          className="hidden whitespace-nowrap text-xs text-slate-500 hover:text-slate-700 sm:inline"
           onClick={clearActiveTenant}
         >
           リセット
