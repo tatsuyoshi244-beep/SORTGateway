@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { computeAnalyticsOverview } from '@/lib/analytics/compute';
 import { MOCK_CHAT_LOGS } from '@/lib/analytics/mock-chat-logs';
 import type { KnowledgeFeedback } from '@/types';
@@ -25,8 +25,11 @@ describe('analytics compute', () => {
     expect(overview.with_knowledge_rate).toBeGreaterThan(0);
   });
 
-  it('counts active users', () => {
-    const overview = computeAnalyticsOverview(MOCK_CHAT_LOGS, []);
-    expect(overview.active_user_count).toBeGreaterThan(0);
-  });
+it('counts active users', () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-06-15T00:00:00Z'));
+  const overview = computeAnalyticsOverview(MOCK_CHAT_LOGS, []);
+  expect(overview.active_user_count).toBeGreaterThan(0);
+  vi.useRealTimers();
+});
 });
