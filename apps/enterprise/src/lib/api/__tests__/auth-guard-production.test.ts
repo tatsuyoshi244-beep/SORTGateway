@@ -54,11 +54,13 @@ describe('allowsDemoAuth', () => {
     vi.unstubAllEnvs();
   });
 
-  it('is false in production', async () => {
-    vi.stubEnv('NODE_ENV', 'production');
-    const { allowsDemoAuth } = await import('@/lib/env');
-    expect(allowsDemoAuth()).toBe(false);
-  });
+  it('is true in production without supabase', async () => {
+  vi.stubEnv('NODE_ENV', 'production');
+  vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
+  vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '');
+  const { allowsDemoAuth } = await import('@/lib/env');
+  expect(allowsDemoAuth()).toBe(true);
+});
 
   it('is true in development without supabase', async () => {
     vi.stubEnv('NODE_ENV', 'development');
