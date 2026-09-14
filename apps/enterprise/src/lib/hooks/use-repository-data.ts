@@ -29,7 +29,11 @@ export function useRepositoryData<T>(
         ? (nextValue as (value: T) => T)(previous)
         : nextValue;
       if (options?.persistMock && source === 'mock' && typeof window !== 'undefined') {
-        window.localStorage.setItem(`sort-gateway-demo:${key}`, JSON.stringify(next));
+        try {
+          window.localStorage.setItem(`sort-gateway-demo:${key}`, JSON.stringify(next));
+        } catch {
+          // Storage may be unavailable in private mode; keep the in-memory state usable.
+        }
       }
       return next;
     });
