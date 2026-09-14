@@ -15,6 +15,7 @@ export function TokenPassModal({
 }) {
   const { applyTokenPass, clearTokenPass, activeTokenPass } = useAuth();
   const [code, setCode] = useState('');
+  const [reason, setReason] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -23,10 +24,11 @@ export function TokenPassModal({
   const handleApply = async () => {
     setLoading(true);
     setError('');
-    const result = await applyTokenPass(code);
+    const result = await applyTokenPass(code, reason);
     setLoading(false);
     if (result.ok) {
       setCode('');
+      setReason('');
       onClose();
     } else {
       setError(result.error ?? '適用に失敗しました');
@@ -63,9 +65,21 @@ export function TokenPassModal({
             className="mt-1 font-mono"
           />
         </div>
+        <div className="mt-4">
+          <Label htmlFor="access-reason">利用理由</Label>
+          <Input
+            id="access-reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="例: 役員会資料の確認"
+            maxLength={200}
+            className="mt-1"
+          />
+          <p className="mt-1 text-xs text-slate-400">監査ログに記録されます</p>
+        </div>
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         <div className="mt-6 flex gap-2">
-          <Button onClick={handleApply} disabled={loading || !code.trim()}>
+          <Button onClick={handleApply} disabled={loading || !code.trim() || reason.trim().length < 2}>
             {loading ? '確認中...' : '適用'}
           </Button>
           {activeTokenPass && (

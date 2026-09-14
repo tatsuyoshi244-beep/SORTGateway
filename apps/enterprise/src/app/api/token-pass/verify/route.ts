@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       auth.companyId,
       result.pass?.id ?? null,
       result.ok,
+      validated.reason!,
       getClientIp(req),
       getUserAgent(req)
     );

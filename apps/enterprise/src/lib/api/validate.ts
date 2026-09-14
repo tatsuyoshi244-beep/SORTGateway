@@ -62,12 +62,14 @@ export function validateChatBody(body: unknown): ValidateResult & { message?: st
   return { ok: true, message: msg.value };
 }
 
-export function validateTokenVerifyBody(body: unknown): ValidateResult & { code?: string } {
+export function validateTokenVerifyBody(body: unknown): ValidateResult & { code?: string; reason?: string } {
   if (!body || typeof body !== 'object') return fail('リクエストボディが不正です');
   const b = body as Record<string, unknown>;
   const code = requireString(b.code, 'code', { min: 4, max: 64 });
   if (!code.ok) return code;
-  return { ok: true, code: code.value };
+  const reason = requireString(b.reason, 'reason', { min: 2, max: 200 });
+  if (!reason.ok) return reason;
+  return { ok: true, code: code.value, reason: reason.value };
 }
 
 export function validateCompanyCreateBody(body: unknown): ValidateResult & {

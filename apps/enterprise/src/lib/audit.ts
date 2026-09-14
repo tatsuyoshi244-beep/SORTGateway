@@ -208,6 +208,7 @@ export async function recordTokenPassVerify(
   companyId: string,
   passId: string | null,
   success: boolean,
+  reason: string,
   ip?: string | null,
   userAgent?: string | null
 ) {
@@ -219,7 +220,7 @@ export async function recordTokenPassVerify(
     resourceType: 'token_pass',
     resourceId: passId,
     result: success ? 'success' : 'failure',
-    details: `トークン検証 ${success ? '成功' : '失敗'}`,
+    details: `トークン検証 ${success ? '成功' : '失敗'} / 利用理由: ${reason.slice(0, 200)}`,
     ipAddress: ip,
     userAgent,
   });

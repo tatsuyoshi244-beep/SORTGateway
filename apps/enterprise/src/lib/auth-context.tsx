@@ -48,7 +48,7 @@ interface AuthContextValue {
   availableCompanies: Company[];
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
-  applyTokenPass: (code: string) => Promise<{ ok: boolean; error?: string }>;
+  applyTokenPass: (code: string, reason: string) => Promise<{ ok: boolean; error?: string }>;
   clearTokenPass: () => void;
   setActiveTenant: (companyId: string, companyName: string) => void;
   clearActiveTenant: () => void;
@@ -302,12 +302,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, persistUser]);
 
   const applyTokenPass = useCallback(
-    async (code: string) => {
+    async (code: string, reason: string) => {
       if (!user) return { ok: false, error: 'ログインが必要です' };
       try {
         const res = await apiFetch(user, '/api/token-pass/verify', {
           method: 'POST',
-          body: JSON.stringify({ code }),
+          body: JSON.stringify({ code, reason }),
         });
         const data = await res.json();
 
