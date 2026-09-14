@@ -4,7 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { apiFetch } from '@/lib/api/client';
+import { allowsDemoAuth } from '@/lib/env';
 import { APPROVAL_STATUS_LABELS, canTransitionWorkflow } from '@/lib/knowledge/workflow';
+import { MOCK_KNOWLEDGE } from '@/lib/mock-data';
+import { filterByCompany } from '@/lib/tenant/filter';
 import type { KnowledgeApprovalStatus, KnowledgeItem } from '@/types';
 import { RouteGuard } from '@/components/auth/RouteGuard';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -16,10 +19,34 @@ import { formatDate } from '@/lib/utils';
 
 const STATUS_FLOW: KnowledgeApprovalStatus[] = ['draft', 'review', 'approved', 'published'];
 
+function demoStorageKey(companyId: string): string {
+  return `sort-gateway-demo-knowledge:${companyId}`;
+}
+
+function loadDemoItems(companyId: string): KnowledgeItem[] {
+  const fallback = filterByCompany(MOCK_KNOWLEDGE, companyId);
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const saved = window.localStorage.getItem(demoStorageKey(companyId));
+    if (!saved) return fallback;
+    const parsed = JSON.parse(saved);
+    return Array.isArray(parsed) ? (parsed as KnowledgeItem[]) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveDemoItems(companyId: string, items: KnowledgeItem[]): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(demoStorageKey(companyId), JSON.stringify(items));
+}
+
 export default function AdminKnowledgePage() {
   const { user, effectiveCompanyId } = useAuth();
   const [items, setItems] = useState<KnowledgeItem[]>([]);
   const [editing, setEditing] = useState<KnowledgeItem | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: '',
     content: '',
@@ -31,10 +58,20 @@ export default function AdminKnowledgePage() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const res = await apiFetch(user, '/api/knowledge');
-    const data = await res.json();
-    if (data.knowledge) setItems(data.knowledge);
-  }, [user]);
+    setError(null);
+    if (allowsDemoAuth()) {
+      setItems(loadDemoItems(effectiveCompanyId));
+      return;
+    }
+    try {
+      const res = await apiFetch(user, '/api/knowledge');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message ?? 'ナレッジを読み込めませんでした');
+      if (data.knowledge) setItems(data.knowledge);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ナレッジを読み込めませんでした');
+    }
+  }, [effectiveCompanyId, user]);
 
   useEffect(() => {
     void load();
@@ -54,43 +91,134 @@ export default function AdminKnowledgePage() {
 
   const save = async () => {
     if (!user || !form.title.trim() || !form.content.trim()) return;
+    setError(null);
+    setNotice(null);
 
-    if (editing) {
-      const res = await apiFetch(user, `/api/knowledge/${editing.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
+    if (allowsDemoAuth()) {
+      const now = new Date().toISOString();
+      let next: KnowledgeItem[];
+      if (editing) {
+        const updated: KnowledgeItem = {
+          ...editing,
           ...form,
-          change_reason: form.change_reason || '内容更新',
-        }),
-      });
-      const data = await res.json();
-      if (data.knowledge) {
-        setItems((prev) => prev.map((k) => (k.id === editing.id ? data.knowledge : k)));
+          version: editing.version + 1,
+          approval_status: 'draft',
+          updated_at: now,
+          updated_by: user.id,
+          updated_by_name: user.full_name,
+          approved_by: null,
+          approved_by_name: null,
+        };
+        next = items.map((item) => (item.id === editing.id ? updated : item));
+      } else {
+        const created: KnowledgeItem = {
+          id: `demo-kn-${Date.now()}`,
+          company_id: effectiveCompanyId,
+          title: form.title.trim(),
+          content: form.content.trim(),
+          summary: form.summary.trim(),
+          category: form.category.trim() || 'その他',
+          classification: form.classification,
+          department_id: user.department_id,
+          department_name: user.department_name,
+          tags: [],
+          created_by: user.id,
+          updated_at: now,
+          approval_status: 'draft',
+          version: 1,
+          responsible_person_id: user.id,
+          responsible_person_name: user.full_name,
+          updated_by: user.id,
+          updated_by_name: user.full_name,
+          approved_by: null,
+          approved_by_name: null,
+        };
+        next = [created, ...items];
       }
-    } else {
-      const res = await apiFetch(user, '/api/knowledge', {
-        method: 'POST',
-        body: JSON.stringify({ ...form, company_id: effectiveCompanyId }),
+      setItems(next);
+      saveDemoItems(effectiveCompanyId, next);
+      setNotice('この端末のデモデータとして保存しました');
+      openNew();
+      return;
+    }
+
+    try {
+      const res = await apiFetch(user, editing ? `/api/knowledge/${editing.id}` : '/api/knowledge', {
+        method: editing ? 'PATCH' : 'POST',
+        body: JSON.stringify(
+          editing
+            ? { ...form, change_reason: form.change_reason || '内容更新' }
+            : { ...form, company_id: effectiveCompanyId }
+        ),
       });
       const data = await res.json();
-      if (data.knowledge) setItems((prev) => [data.knowledge, ...prev]);
+      if (!res.ok) throw new Error(data.error?.message ?? '保存できませんでした');
+      setNotice(editing ? 'ナレッジを更新しました' : 'ナレッジを登録しました');
+      openNew();
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '保存できませんでした');
     }
-    openNew();
-    void load();
   };
 
   const transition = async (id: string, status: KnowledgeApprovalStatus) => {
     if (!user) return;
-    const res = await apiFetch(user, `/api/knowledge/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
-    if (res.ok) void load();
+    setError(null);
+    setNotice(null);
+    if (allowsDemoAuth()) {
+      const now = new Date().toISOString();
+      const next = items.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              approval_status: status,
+              updated_at: now,
+              updated_by: user.id,
+              updated_by_name: user.full_name,
+              approved_by: status === 'approved' || status === 'published' ? user.id : item.approved_by,
+              approved_by_name:
+                status === 'approved' || status === 'published' ? user.full_name : item.approved_by_name,
+            }
+          : item
+      );
+      setItems(next);
+      saveDemoItems(effectiveCompanyId, next);
+      setNotice(`ステータスを${APPROVAL_STATUS_LABELS[status]}に変更しました`);
+      return;
+    }
+    try {
+      const res = await apiFetch(user, `/api/knowledge/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message ?? 'ステータスを変更できませんでした');
+      setNotice(`ステータスを${APPROVAL_STATUS_LABELS[status]}に変更しました`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ステータスを変更できませんでした');
+    }
   };
 
-  const remove = (id: string) => {
-    if (confirm('このナレッジを削除しますか？（デモでは一覧から非表示のみ）')) {
-      setItems((prev) => prev.filter((k) => k.id !== id));
+  const remove = async (id: string) => {
+    if (!user || !confirm('このナレッジを削除しますか？')) return;
+    setError(null);
+    setNotice(null);
+    if (allowsDemoAuth()) {
+      const next = items.filter((item) => item.id !== id);
+      setItems(next);
+      saveDemoItems(effectiveCompanyId, next);
+      setNotice('この端末のデモデータから削除しました');
+      return;
+    }
+    try {
+      const res = await apiFetch(user, `/api/knowledge/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message ?? '削除できませんでした');
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      setNotice('ナレッジを削除しました');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '削除できませんでした');
     }
   };
 
@@ -114,6 +242,22 @@ export default function AdminKnowledgePage() {
             </Button>
           }
         />
+
+        {allowsDemoAuth() && (
+          <p className="mb-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            デモ環境の登録・編集内容は、この端末のブラウザにのみ保存されます。
+          </p>
+        )}
+        {notice && (
+          <p className="mb-4 rounded-lg bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+            {notice}
+          </p>
+        )}
+        {error && (
+          <p className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            {error}
+          </p>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
@@ -200,7 +344,7 @@ export default function AdminKnowledgePage() {
                       >
                         編集
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => remove(k.id)}>
+                      <Button variant="ghost" size="sm" onClick={() => void remove(k.id)}>
                         <Trash2 className="h-4 w-4 text-red-500" />
                       </Button>
                     </div>

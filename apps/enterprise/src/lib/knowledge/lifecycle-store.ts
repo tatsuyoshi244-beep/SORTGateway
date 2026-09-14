@@ -165,6 +165,16 @@ export async function transitionKnowledgeStatus(
   return updated;
 }
 
+export async function deleteKnowledge(id: string): Promise<boolean> {
+  const store = await readStore();
+  const before = store.knowledge.length;
+  store.knowledge = store.knowledge.filter((item) => item.id !== id);
+  if (store.knowledge.length === before) return false;
+  store.versions = store.versions.filter((version) => version.knowledge_id !== id);
+  await writeStore(store);
+  return true;
+}
+
 export async function listFeedback(companyId: string): Promise<KnowledgeFeedback[]> {
   const store = await readStore();
   return store.feedback

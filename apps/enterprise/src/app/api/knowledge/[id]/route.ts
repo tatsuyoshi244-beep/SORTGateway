@@ -4,7 +4,12 @@ import {
   assertCompanyScope,
   requireManagerOrAbove,
 } from '@/lib/api/auth-guard';
-import { getKnowledge, saveKnowledge, transitionKnowledgeStatus } from '@/lib/knowledge/lifecycle-store';
+import {
+  deleteKnowledge,
+  getKnowledge,
+  saveKnowledge,
+  transitionKnowledgeStatus,
+} from '@/lib/knowledge/lifecycle-store';
 import { canTransitionWorkflow } from '@/lib/knowledge/workflow';
 import type { KnowledgeApprovalStatus } from '@/types';
 
@@ -59,4 +64,26 @@ export async function PATCH(
   );
 
   return NextResponse.json({ knowledge: updated });
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const auth = await authenticateRequest(req);
+  if (auth instanceof NextResponse) return auth;
+
+  const denied = requireManagerOrAbove(auth);
+  if (denied) return denied;
+
+  const existing = await getKnowledge(params.id);
+  if (!existing) {
+    return NextResponse.json({ error: { message: 'ナレッジが見つかりません' } }, { status: 404 });
+  }
+
+  const scope = assertCompanyScope(auth, existing.company_id);
+  if (scope) return scope;
+
+  await deleteKnowledge(params.id);
+  return NextResponse.json({ deleted: true });
 }
