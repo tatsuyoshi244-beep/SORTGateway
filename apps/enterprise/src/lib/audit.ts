@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isSupabaseAdminConfigured } from '@/lib/env';
+import { isSupabaseAdminConfigured, isSupabaseConfigured } from '@/lib/env';
 
 export type AuditAction =
   | 'auth.login'
@@ -55,6 +55,9 @@ export async function recordAuditLog(input: AuditRecordInput): Promise<void> {
   };
 
   if (!isSupabaseAdminConfigured()) {
+    if (isSupabaseConfigured()) {
+      throw new Error('監査ログ用の本番データベース接続が未設定です');
+    }
     if (process.env.NODE_ENV === 'development') {
       console.info('[audit]', payload);
     }
@@ -62,12 +65,10 @@ export async function recordAuditLog(input: AuditRecordInput): Promise<void> {
   }
 
   const admin = createAdminClient();
-  if (!admin) return;
+  if (!admin) throw new Error('監査ログ用の本番データベース接続が未設定です');
 
   const { error } = await admin.from('audit_logs').insert(payload);
-  if (error && process.env.NODE_ENV === 'development') {
-    console.warn('[audit] insert failed:', error.message);
-  }
+  if (error) throw new Error(`監査ログを保存できませんでした: ${error.message}`);
 }
 
 export async function recordAuthLogin(

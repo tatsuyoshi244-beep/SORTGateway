@@ -9,6 +9,7 @@ import { validateChatBody } from '@/lib/api/validate';
 import { getClientIp, getUserAgent } from '@/lib/api/request-meta';
 import { apiError, apiErrorFromException } from '@/lib/api/errors';
 import { measureAsync } from '@/lib/observability/timing';
+import { isSupabaseConfigured } from '@/lib/env';
 
 export const runtime = 'nodejs';
 
@@ -39,12 +40,18 @@ export async function POST(req: NextRequest) {
       generateChatResponse(validated.message!, rag)
     );
 
-    const chatLog = await appendChatLog({
-      company_id: auth.companyId,
-      user: auth.user,
-      question: validated.message!,
-      payload,
-  }).catch(() => ({ id: 'demo-session' }));
+    let chatLog: { id: string };
+    try {
+      chatLog = await appendChatLog({
+        company_id: auth.companyId,
+        user: auth.user,
+        question: validated.message!,
+        payload,
+      });
+    } catch (error) {
+      if (isSupabaseConfigured()) throw error;
+      chatLog = { id: 'demo-session' };
+    }
 
     await incrementChatUsage().catch(() => 0);
     await recordChatSend(
