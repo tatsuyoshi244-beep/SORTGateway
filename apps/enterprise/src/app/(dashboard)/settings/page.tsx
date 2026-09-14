@@ -3,16 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { apiFetch } from '@/lib/api/client';
-import { DEFAULT_SETTINGS } from '@/lib/mock-data';
 import { INTEGRATION_PROVIDER_LABELS } from '@/lib/integrations/constants';
-import type { AppSettings, IntegrationConnection, IntegrationConnectionStatus } from '@/types';
+import type { IntegrationConnection, IntegrationConnectionStatus } from '@/types';
 import { RouteGuard } from '@/components/auth/RouteGuard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
-import { Input, Label } from '@/components/ui/Input';
-import { isOpenAIConfigured, isSupabaseConfigured } from '@/lib/env';
 import { IntegrationOpsSummary } from '@/components/integrations/IntegrationOpsSummary';
+import { SECURITY_POLICY } from '@/lib/security/config';
 
 const INT_STATUS: Record<IntegrationConnectionStatus, string> = {
   not_connected: '未接続',
@@ -22,14 +19,26 @@ const INT_STATUS: Record<IntegrationConnectionStatus, string> = {
   disabled: '無効',
 };
 
+interface ReadinessSnapshot {
+  ready: boolean;
+  mode: 'production' | 'development';
+  checks?: Record<string, boolean>;
+  schema_version?: string | null;
+}
+
+function StatusRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-3 last:border-0">
+      <span className="text-sm text-slate-500">{label}</span>
+      <span className="text-right text-sm font-medium text-slate-900">{value}</span>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { user, effectiveCompanyName } = useAuth();
-  const [settings, setSettings] = useState<AppSettings>({
-    ...DEFAULT_SETTINGS,
-    company_name: effectiveCompanyName,
-  });
-  const [saved, setSaved] = useState(false);
   const [integrations, setIntegrations] = useState<IntegrationConnection[]>([]);
+  const [readiness, setReadiness] = useState<ReadinessSnapshot | null>(null);
 
   useEffect(() => {
     if (!user || !['admin', 'super_admin'].includes(user.role)) return;
@@ -41,70 +50,48 @@ export default function SettingsPage() {
       .catch(() => {});
   }, [user]);
 
-  const save = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
+  useEffect(() => {
+    fetch('/api/ready', { cache: 'no-store' })
+      .then(async (response) => response.json())
+      .then((data: ReadinessSnapshot) => setReadiness(data))
+      .catch(() => setReadiness(null));
+  }, []);
 
   return (
     <RouteGuard route="settings">
       <div>
         <PageHeader
           title="設定"
-          description="アプリケーション全体の動作設定"
+          description="現在実際に有効な運用設定と接続状態"
         />
 
         <Card className="max-w-2xl">
-          <CardBody className="space-y-5">
-            <div>
-              <Label>会社名（テナント）</Label>
-              <Input value={effectiveCompanyName} readOnly className="bg-slate-50" />
-              <p className="mt-1 text-xs text-slate-400">
-                表示用の会社名。super_admin はヘッダーで企業を切り替えできます。
-              </p>
-            </div>
-            <div>
-              <Label>設定上の会社名</Label>
-              <Input
-                value={settings.company_name}
-                onChange={(e) => setSettings({ ...settings, company_name: e.target.value })}
+          <CardBody>
+            <h3 className="font-semibold text-slate-900">有効な運用設定</h3>
+            <div className="mt-3">
+              <StatusRow label="操作中のテナント" value={effectiveCompanyName} />
+              <StatusRow label="既定言語" value="日本語" />
+              <StatusRow
+                label="AI回答"
+                value={readiness?.checks?.openai ? 'OpenAI API' : '根拠限定デモ回答'}
               />
-            </div>
-            <div>
-              <Label>デフォルト言語</Label>
-              <Input
-                value={settings.default_language}
-                onChange={(e) => setSettings({ ...settings, default_language: e.target.value })}
+              <StatusRow
+                label="監査ログ保持方針"
+                value={`${SECURITY_POLICY.audit.retention_days}日`}
               />
-            </div>
-            <div>
-              <Label>チャットモデル</Label>
-              <Input
-                value={settings.chat_model}
-                onChange={(e) => setSettings({ ...settings, chat_model: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>ログ保持日数</Label>
-              <Input
-                type="number"
-                value={settings.retention_days}
-                onChange={(e) =>
-                  setSettings({ ...settings, retention_days: parseInt(e.target.value, 10) || 90 })
+              <StatusRow
+                label="一般社員の機密アクセス保護"
+                value={
+                  SECURITY_POLICY.confidential_access.require_token_for_confidential
+                    ? '有効'
+                    : '無効'
                 }
               />
             </div>
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={settings.require_token_for_confidential}
-                onChange={(e) =>
-                  setSettings({ ...settings, require_token_for_confidential: e.target.checked })
-                }
-              />
-              機密情報にトークンパスを必須にする
-            </label>
-            <Button onClick={save}>{saved ? '保存しました' : '設定を保存'}</Button>
+            <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs leading-5 text-amber-800">
+              この画面は実効値の確認専用です。未実装だった疑似保存操作は廃止しました。
+              本番設定の変更は、環境変数とセキュリティポリシーを変更し、レビュー後に再デプロイします。
+            </p>
           </CardBody>
         </Card>
 
@@ -142,13 +129,21 @@ export default function SettingsPage() {
           <CardBody>
             <h3 className="font-semibold text-slate-900">接続状態</h3>
             <p className="mt-2 text-sm text-slate-600">
-              Supabase: {isSupabaseConfigured() ? '設定済み' : '未設定（モックデータモード）'}
+              Supabase: {readiness?.checks?.supabase ? '設定済み' : '未設定（デモモード）'}
             </p>
             <p className="mt-1 text-sm text-slate-600">
-              OpenAI API: {isOpenAIConfigured() ? '設定済み' : '未設定（モック回答モード）'}
+              OpenAI API: {readiness?.checks?.openai ? '設定済み' : '未設定（デモ回答モード）'}
             </p>
+            <p className="mt-1 text-sm text-slate-600">
+              Readiness: {readiness ? (readiness.ready ? 'Ready' : '要設定') : '確認できません'}
+            </p>
+            {readiness?.schema_version && (
+              <p className="mt-1 text-sm text-slate-600">
+                Schema: {readiness.schema_version}
+              </p>
+            )}
             <p className="mt-1 text-xs text-slate-400">
-              環境変数は .env.local に設定。Vercel 本番でも同キーを設定してください
+              秘密値そのものは画面に表示しません
             </p>
           </CardBody>
         </Card>
