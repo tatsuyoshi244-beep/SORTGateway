@@ -32,7 +32,8 @@ export default function HandoverPage() {
   const { data: allItems, loading, source, setData } = useRepositoryData(
     `handover-${effectiveCompanyId}`,
     () => fetchHandoverItems(effectiveCompanyId),
-    filterByCompany(MOCK_HANDOVERS, effectiveCompanyId)
+    filterByCompany(MOCK_HANDOVERS, effectiveCompanyId),
+    { persistMock: true }
   );
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', content: '', from_person: '', to_person: '' });

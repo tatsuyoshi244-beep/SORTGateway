@@ -24,7 +24,8 @@ export default function AdminTokenPassesPage() {
   const { data: passes, loading, source, setData } = useRepositoryData(
     `token-passes-${effectiveCompanyId}`,
     () => fetchTokenPasses(effectiveCompanyId),
-    filterByCompany(MOCK_TOKEN_PASSES, effectiveCompanyId)
+    filterByCompany(MOCK_TOKEN_PASSES, effectiveCompanyId),
+    { persistMock: true }
   );
   const [showForm, setShowForm] = useState(false);
   const [label, setLabel] = useState('');

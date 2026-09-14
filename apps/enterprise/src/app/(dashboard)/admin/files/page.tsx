@@ -34,7 +34,8 @@ export default function AdminFilesPage() {
   const { data: connections, loading, source, setData } = useRepositoryData(
     `file-connections-${effectiveCompanyId}`,
     () => fetchFileConnections(effectiveCompanyId),
-    filterByCompany(MOCK_FILE_CONNECTIONS, effectiveCompanyId)
+    filterByCompany(MOCK_FILE_CONNECTIONS, effectiveCompanyId),
+    { persistMock: true }
   );
 
   const sync = async (id: string) => {

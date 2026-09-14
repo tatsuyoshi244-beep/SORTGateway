@@ -18,7 +18,8 @@ export default function AdminUsersPage() {
   const { data: users, loading, source, setData } = useRepositoryData(
     `users-${effectiveCompanyId}`,
     () => fetchUsers(effectiveCompanyId),
-    filterByCompany(MOCK_USERS, effectiveCompanyId)
+    filterByCompany(MOCK_USERS, effectiveCompanyId),
+    { persistMock: true }
   );
 
   const updateRole = async (id: string, role: UserRole) => {
