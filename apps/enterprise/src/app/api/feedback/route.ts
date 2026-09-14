@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   });
 
   if (body.chat_message_id) {
-    await setChatLogFeedback(body.chat_message_id, rating);
+    await setChatLogFeedback(body.chat_message_id, rating, auth.companyId);
   }
 
   return NextResponse.json({ feedback: fb });

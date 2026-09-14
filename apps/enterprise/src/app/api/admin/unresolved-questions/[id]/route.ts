@@ -23,7 +23,7 @@ export async function PATCH(
   const denied = requireManagerOrAbove(auth);
   if (denied) return denied;
 
-  const log = await getChatLog(params.id);
+  const log = await getChatLog(params.id, auth.companyId);
   if (!log) {
     return NextResponse.json({ error: { message: '質問が見つかりません' } }, { status: 404 });
   }
@@ -57,7 +57,7 @@ export async function PATCH(
       resolved_by_admin: true,
       unresolved: false,
       status: 'resolved',
-    });
+    }, auth.companyId);
 
     await createNotification({
       company_id: log.company_id,
@@ -90,7 +90,7 @@ export async function PATCH(
       assigned_to_id: body.assigned_to_id ?? null,
       assigned_to_name: body.assigned_to_name ?? null,
       status: 'assigned',
-    });
+    }, auth.companyId);
     return NextResponse.json({ log: updated });
   }
 
@@ -99,7 +99,7 @@ export async function PATCH(
       resolved_by_admin: true,
       unresolved: false,
       status: 'resolved',
-    });
+    }, auth.companyId);
     return NextResponse.json({ log: updated });
   }
 
@@ -107,7 +107,7 @@ export async function PATCH(
     const updated = await updateChatLog(log.id, {
       unresolved: false,
       status: 'hidden',
-    });
+    }, auth.companyId);
     return NextResponse.json({ log: updated });
   }
 
