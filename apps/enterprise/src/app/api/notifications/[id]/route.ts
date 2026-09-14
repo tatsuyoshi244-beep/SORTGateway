@@ -11,7 +11,7 @@ export async function PATCH(
   const auth = await authenticateRequest(req);
   if (auth instanceof NextResponse) return auth;
 
-  const ok = await markNotificationRead(params.id);
+  const ok = await markNotificationRead(params.id, auth.companyId, auth.user.id);
   if (!ok) {
     return NextResponse.json({ error: { message: '通知が見つかりません' } }, { status: 404 });
   }

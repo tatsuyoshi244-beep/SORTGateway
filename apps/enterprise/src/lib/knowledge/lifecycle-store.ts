@@ -17,7 +17,7 @@ import {
 } from '@/lib/mock-lifecycle';
 import { snapshotVersion, buildPublishNotification } from '@/lib/knowledge/workflow';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isSupabaseAdminConfigured, isSupabaseConfigured } from '@/lib/env';
+import { isSupabaseConfigured } from '@/lib/env';
 
 const STORE_FILE = 'lifecycle-store.json';
 
@@ -82,6 +82,35 @@ function mapVersionRow(row: Record<string, unknown>): KnowledgeVersion {
     approved_by_name: joinedName(row.approved_user as NameJoin),
     approval_status: row.approval_status as KnowledgeApprovalStatus,
     change_reason: row.change_reason ? String(row.change_reason) : null,
+    created_at: String(row.created_at),
+  };
+}
+
+function mapFeedbackRow(row: Record<string, unknown>): KnowledgeFeedback {
+  return {
+    id: String(row.id),
+    company_id: String(row.company_id),
+    user_id: row.user_id ? String(row.user_id) : '',
+    user_name: joinedName(row.users as NameJoin) ?? '—',
+    question: String(row.question),
+    answer_summary: String(row.answer_summary ?? ''),
+    rating: row.rating as FeedbackRating,
+    chat_message_id: row.chat_message_id ? String(row.chat_message_id) : null,
+    created_at: String(row.created_at),
+  };
+}
+
+function mapNotificationRow(row: Record<string, unknown>): AppNotification {
+  return {
+    id: String(row.id),
+    company_id: String(row.company_id),
+    user_id: row.user_id ? String(row.user_id) : null,
+    type: row.type as AppNotification['type'],
+    title: String(row.title),
+    message: String(row.message),
+    resource_type: String(row.resource_type ?? ''),
+    resource_id: row.resource_id ? String(row.resource_id) : null,
+    is_read: Boolean(row.is_read),
     created_at: String(row.created_at),
   };
 }
@@ -443,6 +472,16 @@ export async function deleteKnowledge(id: string): Promise<boolean> {
 }
 
 export async function listFeedback(companyId: string): Promise<KnowledgeFeedback[]> {
+  if (isSupabaseConfigured()) {
+    const admin = requireAdminClient();
+    const { data, error } = await admin
+      .from('feedback')
+      .select('*,users:user_id(full_name)')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(`フィードバックを読み込めませんでした: ${error.message}`);
+    return (data ?? []).map((row) => mapFeedbackRow(row as Record<string, unknown>));
+  }
   const store = await readStore();
   return store.feedback
     .filter((f) => f.company_id === companyId)
@@ -458,7 +497,6 @@ export async function addFeedback(input: {
   rating: FeedbackRating;
   chat_message_id?: string | null;
 }): Promise<KnowledgeFeedback> {
-  const store = await readStore();
   const fb: KnowledgeFeedback = {
     id: `fb-${randomUUID().slice(0, 8)}`,
     company_id: input.company_id,
@@ -470,23 +508,28 @@ export async function addFeedback(input: {
     chat_message_id: input.chat_message_id ?? null,
     created_at: new Date().toISOString(),
   };
-  store.feedback.unshift(fb);
-  await writeStore(store);
 
-  if (isSupabaseAdminConfigured()) {
-    const admin = createAdminClient();
-    if (admin) {
-      await admin.from('feedback').insert({
+  if (isSupabaseConfigured()) {
+    const admin = requireAdminClient();
+    const { data, error } = await admin
+      .from('feedback')
+      .insert({
         company_id: fb.company_id,
         user_id: fb.user_id,
         question: fb.question,
         answer_summary: fb.answer_summary,
         rating: fb.rating,
         chat_message_id: fb.chat_message_id,
-      });
-    }
+      })
+      .select('*,users:user_id(full_name)')
+      .single();
+    if (error) throw new Error(`フィードバックを保存できませんでした: ${error.message}`);
+    return mapFeedbackRow(data as Record<string, unknown>);
   }
 
+  const store = await readStore();
+  store.feedback.unshift(fb);
+  await writeStore(store);
   return fb;
 }
 
@@ -494,6 +537,19 @@ export async function listNotifications(
   companyId: string,
   userId?: string | null
 ): Promise<AppNotification[]> {
+  if (isSupabaseConfigured()) {
+    const admin = requireAdminClient();
+    const { data, error } = await admin
+      .from('notifications')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) throw new Error(`通知を読み込めませんでした: ${error.message}`);
+    return (data ?? [])
+      .map((row) => mapNotificationRow(row as Record<string, unknown>))
+      .filter((notification) => notification.user_id === null || notification.user_id === userId);
+  }
   const store = await readStore();
   return store.notifications
     .filter(
@@ -504,9 +560,30 @@ export async function listNotifications(
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
-export async function markNotificationRead(id: string): Promise<boolean> {
+export async function markNotificationRead(
+  id: string,
+  companyId: string,
+  userId: string
+): Promise<boolean> {
+  if (isSupabaseConfigured()) {
+    const admin = requireAdminClient();
+    const { data, error } = await admin
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', id)
+      .eq('company_id', companyId)
+      .or(`user_id.is.null,user_id.eq.${userId}`)
+      .select('id');
+    if (error) throw new Error(`通知を更新できませんでした: ${error.message}`);
+    return (data?.length ?? 0) > 0;
+  }
   const store = await readStore();
-  const idx = store.notifications.findIndex((n) => n.id === id);
+  const idx = store.notifications.findIndex(
+    (n) =>
+      n.id === id &&
+      n.company_id === companyId &&
+      (n.user_id === null || n.user_id === userId)
+  );
   if (idx < 0) return false;
   store.notifications[idx] = { ...store.notifications[idx], is_read: true };
   await writeStore(store);
@@ -516,6 +593,25 @@ export async function markNotificationRead(id: string): Promise<boolean> {
 export async function createNotification(
   input: Omit<AppNotification, 'id' | 'created_at' | 'is_read'>
 ): Promise<AppNotification> {
+  if (isSupabaseConfigured()) {
+    const admin = requireAdminClient();
+    const { data, error } = await admin
+      .from('notifications')
+      .insert({
+        company_id: input.company_id,
+        user_id: input.user_id,
+        type: input.type,
+        title: input.title,
+        message: input.message,
+        resource_type: input.resource_type,
+        resource_id: input.resource_id,
+        is_read: false,
+      })
+      .select('*')
+      .single();
+    if (error) throw new Error(`通知を保存できませんでした: ${error.message}`);
+    return mapNotificationRow(data as Record<string, unknown>);
+  }
   const store = await readStore();
   const notification: AppNotification = {
     ...input,
@@ -530,6 +626,7 @@ export async function createNotification(
 }
 
 export async function incrementChatUsage(): Promise<number> {
+  if (isSupabaseConfigured()) return 0;
   const store = await readStore();
   store.chat_usage_count += 1;
   await writeStore(store);
@@ -537,11 +634,28 @@ export async function incrementChatUsage(): Promise<number> {
 }
 
 export async function getChatUsageCount(): Promise<number> {
+  if (isSupabaseConfigured()) return 0;
   const store = await readStore();
   return store.chat_usage_count;
 }
 
 export async function getLifecycleStore(companyId: string) {
+  if (isSupabaseConfigured()) {
+    const admin = requireAdminClient();
+    const [knowledge, feedback, chatCount] = await Promise.all([
+      listKnowledge(companyId),
+      listFeedback(companyId),
+      admin.from('chat_logs').select('*', { count: 'exact', head: true }).eq('company_id', companyId),
+    ]);
+    if (chatCount.error) {
+      throw new Error(`チャット利用数を読み込めませんでした: ${chatCount.error.message}`);
+    }
+    return {
+      knowledge,
+      feedback,
+      chat_usage_count: chatCount.count ?? 0,
+    };
+  }
   const store = await readStore();
   return {
     knowledge: store.knowledge.filter((k) => k.company_id === companyId),
