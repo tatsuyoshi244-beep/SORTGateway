@@ -7,7 +7,7 @@ import type {
   SessionUser,
 } from '@/types';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isSupabaseAdminConfigured } from '@/lib/env';
+import { isSupabaseConfigured } from '@/lib/env';
 import {
   localDeleteDocument,
   localGetAllChunks,
@@ -25,6 +25,12 @@ import { DEMO_COMPANY_ID } from '@/lib/tenant/constants';
 import { extractText, inferFileType, type ExtractOutcome } from './extract';
 
 const STORAGE_BUCKET = 'documents';
+
+function requireAdminClient() {
+  const client = createAdminClient();
+  if (!client) throw new Error('本番用ドキュメントデータベース接続が未設定です');
+  return client;
+}
 
 function mapDocumentRow(row: Record<string, unknown>): DocumentRecord {
   return {
@@ -60,83 +66,75 @@ function mapChunkRow(row: Record<string, unknown>): DocumentChunk {
 }
 
 export async function listDocuments(companyId?: string): Promise<DocumentRecord[]> {
-  let docs: DocumentRecord[] = [];
-  if (isSupabaseAdminConfigured()) {
-    const client = createAdminClient();
-    if (client) {
-      let query = client.from('documents').select('*').order('updated_at', { ascending: false });
-      if (companyId) query = query.eq('company_id', companyId);
-      const { data, error } = await query;
-      if (!error && data) docs = data.map((r) => mapDocumentRow(r as Record<string, unknown>));
-    }
+  if (isSupabaseConfigured()) {
+    const client = requireAdminClient();
+    let query = client.from('documents').select('*').order('updated_at', { ascending: false });
+    if (companyId) query = query.eq('company_id', companyId);
+    const { data, error } = await query;
+    if (error) throw new Error(`ドキュメント一覧を読み込めませんでした: ${error.message}`);
+    return (data ?? []).map((row) => mapDocumentRow(row as Record<string, unknown>));
   }
-  if (docs.length === 0) docs = await localListDocuments();
+  const docs = await localListDocuments();
   return companyId ? filterByCompany(docs, companyId) : docs;
 }
 
 export async function getDocument(id: string): Promise<DocumentRecord | null> {
-  if (isSupabaseAdminConfigured()) {
-    const client = createAdminClient();
-    if (client) {
-      const { data } = await client.from('documents').select('*').eq('id', id).maybeSingle();
-      if (data) return mapDocumentRow(data as Record<string, unknown>);
-    }
+  if (isSupabaseConfigured()) {
+    const client = requireAdminClient();
+    const { data, error } = await client.from('documents').select('*').eq('id', id).maybeSingle();
+    if (error) throw new Error(`ドキュメントを読み込めませんでした: ${error.message}`);
+    return data ? mapDocumentRow(data as Record<string, unknown>) : null;
   }
   return localGetDocument(id);
 }
 
 export async function getDocumentChunks(documentId: string): Promise<DocumentChunk[]> {
-  if (isSupabaseAdminConfigured()) {
-    const client = createAdminClient();
-    if (client) {
-      const { data } = await client
-        .from('document_chunks')
-        .select('*')
-        .eq('document_id', documentId)
-        .order('chunk_index');
-      if (data) return data.map((r) => mapChunkRow(r as Record<string, unknown>));
-    }
+  if (isSupabaseConfigured()) {
+    const client = requireAdminClient();
+    const { data, error } = await client
+      .from('document_chunks')
+      .select('*')
+      .eq('document_id', documentId)
+      .order('chunk_index');
+    if (error) throw new Error(`文書チャンクを読み込めませんでした: ${error.message}`);
+    return (data ?? []).map((row) => mapChunkRow(row as Record<string, unknown>));
   }
   return localGetChunks(documentId);
 }
 
 export async function getAllDocumentChunks(companyId?: string): Promise<DocumentChunk[]> {
-  let chunks: DocumentChunk[] = [];
-  if (isSupabaseAdminConfigured()) {
-    const client = createAdminClient();
-    if (client) {
-      let query = client.from('document_chunks').select('*');
-      if (companyId) query = query.eq('company_id', companyId);
-      const { data } = await query;
-      if (data) chunks = data.map((r) => mapChunkRow(r as Record<string, unknown>));
-    }
+  if (isSupabaseConfigured()) {
+    const client = requireAdminClient();
+    let query = client.from('document_chunks').select('*');
+    if (companyId) query = query.eq('company_id', companyId);
+    const { data, error } = await query;
+    if (error) throw new Error(`文書チャンクを読み込めませんでした: ${error.message}`);
+    return (data ?? []).map((row) => mapChunkRow(row as Record<string, unknown>));
   }
-  if (chunks.length === 0) chunks = await localGetAllChunks();
+  const chunks = await localGetAllChunks();
   return companyId ? filterByCompany(chunks, companyId) : chunks;
 }
 
 async function saveFileToStorage(filename: string, buffer: Buffer): Promise<string> {
-  if (isSupabaseAdminConfigured()) {
-    const client = createAdminClient();
-    if (client) {
-      const storagePath = `${randomUUID()}/${filename}`;
-      const { error } = await client.storage.from(STORAGE_BUCKET).upload(storagePath, buffer, {
-        contentType: 'application/octet-stream',
-        upsert: false,
-      });
-      if (!error) return `supabase://${STORAGE_BUCKET}/${storagePath}`;
-    }
+  if (isSupabaseConfigured()) {
+    const client = requireAdminClient();
+    const storagePath = `${randomUUID()}/${filename}`;
+    const { error } = await client.storage.from(STORAGE_BUCKET).upload(storagePath, buffer, {
+      contentType: 'application/octet-stream',
+      upsert: false,
+    });
+    if (error) throw new Error(`ファイルをStorageへ保存できませんでした: ${error.message}`);
+    return `supabase://${STORAGE_BUCKET}/${storagePath}`;
   }
   return localSaveFile(filename, buffer);
 }
 
 async function persistDocument(doc: DocumentRecord): Promise<DocumentRecord> {
-  if (isSupabaseAdminConfigured()) {
-    const client = createAdminClient();
-    if (client) {
-      const { data, error } = await client.from('documents').upsert(doc).select('*').single();
-      if (!error && data) return mapDocumentRow(data as Record<string, unknown>);
-    }
+  if (isSupabaseConfigured()) {
+    const client = requireAdminClient();
+    const { data, error } = await client.from('documents').upsert(doc).select('*').single();
+    if (error) throw new Error(`ドキュメント情報を保存できませんでした: ${error.message}`);
+    return mapDocumentRow(data as Record<string, unknown>);
   }
   return localSaveDocument(doc);
 }
@@ -145,14 +143,17 @@ async function persistChunks(
   documentId: string,
   chunks: Omit<DocumentChunk, 'id'>[]
 ): Promise<DocumentChunk[]> {
-  if (isSupabaseAdminConfigured()) {
-    const client = createAdminClient();
-    if (client) {
-      await client.from('document_chunks').delete().eq('document_id', documentId);
-      const rows = chunks.map((c) => ({ ...c, document_id: documentId }));
-      const { data, error } = await client.from('document_chunks').insert(rows).select('*');
-      if (!error && data) return data.map((r) => mapChunkRow(r as Record<string, unknown>));
-    }
+  if (isSupabaseConfigured()) {
+    const client = requireAdminClient();
+    const { error: deleteError } = await client
+      .from('document_chunks')
+      .delete()
+      .eq('document_id', documentId);
+    if (deleteError) throw new Error(`既存チャンクを削除できませんでした: ${deleteError.message}`);
+    const rows = chunks.map((c) => ({ ...c, document_id: documentId }));
+    const { data, error } = await client.from('document_chunks').insert(rows).select('*');
+    if (error) throw new Error(`文書チャンクを保存できませんでした: ${error.message}`);
+    return (data ?? []).map((row) => mapChunkRow(row as Record<string, unknown>));
   }
   return localSaveChunks(documentId, chunks);
 }
@@ -380,18 +381,20 @@ export async function importSyncedDocument(input: {
 }
 
 export async function deleteDocument(id: string): Promise<boolean> {
-  if (isSupabaseAdminConfigured()) {
-    const client = createAdminClient();
-    if (client) {
-      const doc = await getDocument(id);
-      if (doc?.storage_path.startsWith('supabase://')) {
-        const path = doc.storage_path.replace(`supabase://${STORAGE_BUCKET}/`, '');
-        await client.storage.from(STORAGE_BUCKET).remove([path]);
-      }
-      await client.from('document_chunks').delete().eq('document_id', id);
-      const { error } = await client.from('documents').delete().eq('id', id);
-      if (!error) return true;
+  if (isSupabaseConfigured()) {
+    const client = requireAdminClient();
+    const doc = await getDocument(id);
+    if (!doc) return false;
+    if (doc.storage_path.startsWith('supabase://')) {
+      const storagePath = doc.storage_path.replace(`supabase://${STORAGE_BUCKET}/`, '');
+      const { error } = await client.storage.from(STORAGE_BUCKET).remove([storagePath]);
+      if (error) throw new Error(`Storage上のファイルを削除できませんでした: ${error.message}`);
     }
+    const { error: chunkError } = await client.from('document_chunks').delete().eq('document_id', id);
+    if (chunkError) throw new Error(`文書チャンクを削除できませんでした: ${chunkError.message}`);
+    const { data, error } = await client.from('documents').delete().eq('id', id).select('id');
+    if (error) throw new Error(`ドキュメントを削除できませんでした: ${error.message}`);
+    return (data?.length ?? 0) > 0;
   }
   return localDeleteDocument(id);
 }

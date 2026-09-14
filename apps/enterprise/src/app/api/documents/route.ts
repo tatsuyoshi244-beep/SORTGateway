@@ -4,6 +4,7 @@ import { getDocumentStats } from '@/lib/documents/stats';
 import { MOCK_DOCUMENTS } from '@/lib/mock-documents';
 import { filterByCompany } from '@/lib/tenant/filter';
 import { authenticateRequest } from '@/lib/api/auth-guard';
+import { isSupabaseConfigured } from '@/lib/env';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
     const companyId = auth.companyId;
 
     let documents = await listDocuments(companyId);
-    if (documents.length === 0) {
+    if (documents.length === 0 && !isSupabaseConfigured()) {
       documents = filterByCompany(MOCK_DOCUMENTS, companyId);
     }
     const stats = getDocumentStats(documents);
