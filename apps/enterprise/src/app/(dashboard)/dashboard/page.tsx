@@ -10,24 +10,55 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { filterHandoversForUser, filterKnowledgeForUser } from '@/lib/data-access';
-import { MOCK_AUDIT_LOGS, MOCK_CHAT_LOGS, MOCK_CONTACTS } from '@/lib/mock-data';
+import {
+  MOCK_AUDIT_LOGS,
+  MOCK_CONTACTS,
+  MOCK_HANDOVERS,
+  MOCK_KNOWLEDGE,
+} from '@/lib/mock-data';
+import { useRepositoryData } from '@/lib/hooks/use-repository-data';
 import { canAccessRoute } from '@/lib/permissions';
+import {
+  fetchContacts,
+  fetchHandoverItems,
+  fetchKnowledgeItems,
+} from '@/lib/repositories';
+import { filterByCompany } from '@/lib/tenant/filter';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
 export default function DashboardPage() {
-  const { user, activeTokenPass } = useAuth();
+  const { user, activeTokenPass, effectiveCompanyId } = useAuth();
+
+  const { data: allKnowledge } = useRepositoryData(
+    `dashboard-knowledge-${effectiveCompanyId}`,
+    () => fetchKnowledgeItems(effectiveCompanyId),
+    filterByCompany(MOCK_KNOWLEDGE, effectiveCompanyId)
+  );
+  const { data: allHandovers } = useRepositoryData(
+    `dashboard-handovers-${effectiveCompanyId}`,
+    () => fetchHandoverItems(effectiveCompanyId),
+    filterByCompany(MOCK_HANDOVERS, effectiveCompanyId)
+  );
+  const { data: contacts } = useRepositoryData(
+    `dashboard-contacts-${effectiveCompanyId}`,
+    () => fetchContacts(effectiveCompanyId),
+    filterByCompany(MOCK_CONTACTS, effectiveCompanyId)
+  );
+
   if (!user) return null;
 
-  const knowledge = filterKnowledgeForUser(user, !!activeTokenPass);
-  const handovers = filterHandoversForUser(user, !!activeTokenPass);
+  const knowledge = filterKnowledgeForUser(user, !!activeTokenPass, allKnowledge, {
+    publishedOnly: true,
+  });
+  const handovers = filterHandoversForUser(user, !!activeTokenPass, allHandovers);
+  const auditLogs = filterByCompany(MOCK_AUDIT_LOGS, effectiveCompanyId);
 
   const stats = [
     { label: '閲覧可能ナレッジ', value: knowledge.length, icon: BookOpen, href: '/knowledge' },
     { label: '引継ぎ情報', value: handovers.length, icon: ArrowRightLeft, href: '/handover' },
-    { label: '担当者', value: MOCK_CONTACTS.length, icon: Users, href: '/contacts' },
-    { label: 'チャット履歴', value: MOCK_CHAT_LOGS.length, icon: MessageSquare, href: '/chat' },
+    { label: '担当者', value: contacts.length, icon: Users, href: '/contacts' },
   ];
 
   return (
@@ -45,7 +76,7 @@ export default function DashboardPage() {
         }
       />
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-8 grid gap-4 sm:grid-cols-3">
         {stats.map((s) => {
           const Icon = s.icon;
           return (
@@ -98,7 +129,7 @@ export default function DashboardPage() {
                 <h3 className="font-semibold text-slate-900">最近の監査ログ</h3>
               </div>
               <ul className="mt-4 space-y-3">
-                {MOCK_AUDIT_LOGS.slice(0, 3).map((log) => (
+                {auditLogs.slice(0, 3).map((log) => (
                   <li key={log.id} className="border-b border-slate-100 pb-2 text-sm last:border-0">
                     <p className="font-medium text-slate-800">{log.action}</p>
                     <p className="text-slate-500">{log.details}</p>
