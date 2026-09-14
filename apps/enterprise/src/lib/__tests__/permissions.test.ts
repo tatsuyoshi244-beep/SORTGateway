@@ -19,6 +19,13 @@ describe('permissions', () => {
     expect(canAccessRoute('manager', 'admin_analytics')).toBe(true);
   });
 
+  it('restricts application settings to administrators', () => {
+    expect(canAccessRoute('employee', 'settings')).toBe(false);
+    expect(canAccessRoute('manager', 'settings')).toBe(false);
+    expect(canAccessRoute('admin', 'settings')).toBe(true);
+    expect(canAccessRoute('super_admin', 'settings')).toBe(true);
+  });
+
   it('restricts confidential without token', () => {
     expect(
       canViewClassification('employee', 'confidential', false, 'dept-1', 'dept-1')

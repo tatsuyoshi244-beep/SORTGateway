@@ -96,7 +96,7 @@ const ROUTE_ACCESS: Record<RouteKey, UserRole[]> = {
   admin_system: ['admin', 'super_admin'],
   document_detail: ALL_EMPLOYEE_ROLES,
   notifications: ALL_EMPLOYEE_ROLES,
-  settings: ALL_EMPLOYEE_ROLES,
+  settings: ['admin', 'super_admin'],
 };
 
 export function canAccessRoute(role: UserRole, key: RouteKey): boolean {
