@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getBuildInfo } from '@/lib/build-info';
-import { isProduction } from '@/lib/env';
 import {
+  evaluateDemoReadiness,
   evaluateDevelopmentReadiness,
   evaluateProductionReadiness,
   readinessMode,
@@ -29,7 +29,7 @@ export async function GET() {
   const info = getBuildInfo();
   const mode = readinessMode();
 
-  if (isProduction()) {
+  if (mode === 'production') {
     const result = await evaluateProductionReadiness();
     return NextResponse.json(
       {
@@ -40,6 +40,21 @@ export async function GET() {
         warnings: result.warnings,
         schema_version: result.schema_version,
         expected_schema_version: 'phase10',
+      },
+      { status: result.ready ? 200 : 503 }
+    );
+  }
+
+  if (mode === 'demo') {
+    const result = evaluateDemoReadiness();
+    return NextResponse.json(
+      {
+        ready: result.ready,
+        ...info,
+        mode,
+        checks: result.checks,
+        warnings: result.warnings,
+        schema_version: result.schema_version,
       },
       { status: result.ready ? 200 : 503 }
     );

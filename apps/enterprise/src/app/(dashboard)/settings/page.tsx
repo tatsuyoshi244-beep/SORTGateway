@@ -21,7 +21,7 @@ const INT_STATUS: Record<IntegrationConnectionStatus, string> = {
 
 interface ReadinessSnapshot {
   ready: boolean;
-  mode: 'production' | 'development';
+  mode: 'production' | 'demo' | 'development';
   checks?: Record<string, boolean>;
   schema_version?: string | null;
 }

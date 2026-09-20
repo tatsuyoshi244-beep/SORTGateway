@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
+  allowsDemoAuth,
   isOpenAIConfigured,
   isProduction,
   isSupabaseAdminConfigured,
@@ -91,6 +92,27 @@ export function evaluateDevelopmentReadiness(dataStoreWritable: boolean) {
   };
 }
 
-export function readinessMode(): 'production' | 'development' {
-  return isProduction() ? 'production' : 'development';
+export function evaluateDemoReadiness() {
+  const demoAuth = allowsDemoAuth();
+  return {
+    checks: {
+      demo_auth: demoAuth,
+      supabase: false,
+      supabase_admin: false,
+      openai: isOpenAIConfigured(),
+    },
+    warnings: [
+      '公開デモモードです。実在する顧客情報・個人情報・機密情報は登録しないでください。',
+    ],
+    schema_version: null as string | null,
+    ready: demoAuth,
+  };
+}
+
+export type ReadinessMode = 'production' | 'demo' | 'development';
+
+export function readinessMode(): ReadinessMode {
+  if (isProduction()) return 'production';
+  if (process.env.NODE_ENV === 'production') return 'demo';
+  return 'development';
 }
