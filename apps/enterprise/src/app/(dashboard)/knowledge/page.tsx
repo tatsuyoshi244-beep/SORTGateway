@@ -16,13 +16,15 @@ import { ClassificationBadge } from '@/components/ui/Badge';
 import { ConfidentialAccessBanner } from '@/components/security/ConfidentialAccessBanner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { formatDate } from '@/lib/utils';
+import { DataLoadError } from '@/components/ui/DataLoadError';
 
 export default function KnowledgePage() {
   const { user, activeTokenPass, effectiveCompanyId } = useAuth();
-  const { data: allItems, loading } = useRepositoryData(
+  const { data: allItems, loading, error, reload } = useRepositoryData(
     `knowledge-${effectiveCompanyId}`,
     () => fetchKnowledgeItems(effectiveCompanyId),
-    filterByCompany(MOCK_KNOWLEDGE, effectiveCompanyId)
+    filterByCompany(MOCK_KNOWLEDGE, effectiveCompanyId),
+    { configuredInitial: [] }
   );
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
@@ -69,7 +71,9 @@ export default function KnowledgePage() {
         description="権限に応じて閲覧可能なナレッジを検索・参照できます"
       />
 
-      {loading ? (
+      {error ? (
+        <DataLoadError message={error} onRetry={() => void reload()} />
+      ) : loading ? (
         <p className="text-sm text-slate-500">ナレッジを読み込んでいます...</p>
       ) : (
         <div className="grid gap-6 lg:grid-cols-5">

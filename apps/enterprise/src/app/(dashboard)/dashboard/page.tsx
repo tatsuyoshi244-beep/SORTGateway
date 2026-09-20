@@ -27,24 +27,28 @@ import { filterByCompany } from '@/lib/tenant/filter';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { DataLoadError } from '@/components/ui/DataLoadError';
 
 export default function DashboardPage() {
   const { user, activeTokenPass, effectiveCompanyId } = useAuth();
 
-  const { data: allKnowledge } = useRepositoryData(
+  const { data: allKnowledge, error: knowledgeError, reload: reloadKnowledge } = useRepositoryData(
     `dashboard-knowledge-${effectiveCompanyId}`,
     () => fetchKnowledgeItems(effectiveCompanyId),
-    filterByCompany(MOCK_KNOWLEDGE, effectiveCompanyId)
+    filterByCompany(MOCK_KNOWLEDGE, effectiveCompanyId),
+    { configuredInitial: [] }
   );
-  const { data: allHandovers } = useRepositoryData(
+  const { data: allHandovers, error: handoverError, reload: reloadHandovers } = useRepositoryData(
     `dashboard-handovers-${effectiveCompanyId}`,
     () => fetchHandoverItems(effectiveCompanyId),
-    filterByCompany(MOCK_HANDOVERS, effectiveCompanyId)
+    filterByCompany(MOCK_HANDOVERS, effectiveCompanyId),
+    { configuredInitial: [] }
   );
-  const { data: contacts } = useRepositoryData(
+  const { data: contacts, error: contactsError, reload: reloadContacts } = useRepositoryData(
     `dashboard-contacts-${effectiveCompanyId}`,
     () => fetchContacts(effectiveCompanyId),
-    filterByCompany(MOCK_CONTACTS, effectiveCompanyId)
+    filterByCompany(MOCK_CONTACTS, effectiveCompanyId),
+    { configuredInitial: [] }
   );
 
   if (!user) return null;
@@ -54,6 +58,7 @@ export default function DashboardPage() {
   });
   const handovers = filterHandoversForUser(user, !!activeTokenPass, allHandovers);
   const auditLogs = filterByCompany(MOCK_AUDIT_LOGS, effectiveCompanyId);
+  const repositoryError = knowledgeError || handoverError || contactsError;
 
   const stats = [
     { label: '閲覧可能ナレッジ', value: knowledge.length, icon: BookOpen, href: '/knowledge' },
@@ -75,6 +80,13 @@ export default function DashboardPage() {
           </Link>
         }
       />
+
+      {repositoryError && (
+        <DataLoadError
+          message={repositoryError}
+          onRetry={() => void Promise.all([reloadKnowledge(), reloadHandovers(), reloadContacts()])}
+        />
+      )}
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
         {stats.map((s) => {

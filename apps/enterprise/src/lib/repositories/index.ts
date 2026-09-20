@@ -37,10 +37,12 @@ export type DataSource = 'mock' | 'supabase';
 export interface FetchResult<T> {
   data: T;
   source: DataSource;
+  error?: string;
 }
 
 async function withSupabase<T>(
   mock: T,
+  empty: T,
   query: (client: NonNullable<ReturnType<typeof createBrowserClient>>) => Promise<T | null>
 ): Promise<FetchResult<T>> {
   if (!isSupabaseConfigured()) {
@@ -48,16 +50,28 @@ async function withSupabase<T>(
   }
   const client = createBrowserClient();
   if (!client) {
-    return { data: mock, source: 'mock' };
+    return {
+      data: empty,
+      source: 'supabase',
+      error: 'Supabaseクライアントを初期化できませんでした。',
+    };
   }
   try {
     const result = await query(client);
     if (result === null) {
-      return { data: mock, source: 'mock' };
+      return {
+        data: empty,
+        source: 'supabase',
+        error: 'データベースからデータを取得できませんでした。',
+      };
     }
     return { data: result, source: 'supabase' };
-  } catch {
-    return { data: mock, source: 'mock' };
+  } catch (error) {
+    return {
+      data: empty,
+      source: 'supabase',
+      error: error instanceof Error ? error.message : 'データ取得中にエラーが発生しました。',
+    };
   }
 }
 
@@ -65,7 +79,7 @@ export async function fetchKnowledgeItems(
   companyId: string
 ): Promise<FetchResult<KnowledgeItem[]>> {
   const mock = filterByCompany(MOCK_KNOWLEDGE, companyId);
-  return withSupabase(mock, async (client) => {
+  return withSupabase(mock, [], async (client) => {
     const { data, error } = await client
       .from('knowledge_items')
       .select('*, departments:department_id(name)')
@@ -80,7 +94,7 @@ export async function fetchHandoverItems(
   companyId: string
 ): Promise<FetchResult<HandoverItem[]>> {
   const mock = filterByCompany(MOCK_HANDOVERS, companyId);
-  return withSupabase(mock, async (client) => {
+  return withSupabase(mock, [], async (client) => {
     const { data, error } = await client
       .from('handover_items')
       .select('*, departments:department_id(name)')
@@ -123,7 +137,7 @@ export async function fetchContacts(
   companyId: string
 ): Promise<FetchResult<ResponsiblePerson[]>> {
   const mock = filterByCompany(MOCK_CONTACTS, companyId);
-  return withSupabase(mock, async (client) => {
+  return withSupabase(mock, [], async (client) => {
     const { data, error } = await client
       .from('responsible_persons')
       .select('*, departments:department_id(name)')
@@ -136,7 +150,7 @@ export async function fetchContacts(
 
 export async function fetchAuditLogs(companyId: string): Promise<FetchResult<AuditLog[]>> {
   const mock = filterByCompany(MOCK_AUDIT_LOGS, companyId);
-  return withSupabase(mock, async (client) => {
+  return withSupabase(mock, [], async (client) => {
     const { data, error } = await client
       .from('audit_logs')
       .select('*, users:user_id(full_name)')
@@ -152,7 +166,7 @@ export async function fetchTokenPasses(
   companyId: string
 ): Promise<FetchResult<TokenPass[]>> {
   const mock = filterByCompany(MOCK_TOKEN_PASSES, companyId);
-  return withSupabase(mock, async (client) => {
+  return withSupabase(mock, [], async (client) => {
     const { data, error } = await client
       .from('token_passes')
       .select('*')
@@ -231,7 +245,7 @@ export async function fetchFileConnections(
   companyId: string
 ): Promise<FetchResult<FileConnection[]>> {
   const mock = filterByCompany(MOCK_FILE_CONNECTIONS, companyId);
-  return withSupabase(mock, async (client) => {
+  return withSupabase(mock, [], async (client) => {
     const { data, error } = await client
       .from('file_connections')
       .select('*')
@@ -263,7 +277,7 @@ export async function updateFileConnectionSync(id: string): Promise<FileConnecti
 
 export async function fetchUsers(companyId: string): Promise<FetchResult<User[]>> {
   const mock = filterByCompany(MOCK_USERS, companyId);
-  return withSupabase(mock, async (client) => {
+  return withSupabase(mock, [], async (client) => {
     const { data, error } = await client
       .from('users')
       .select('*, departments:department_id(name)')

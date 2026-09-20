@@ -15,6 +15,7 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/ui/Badge';
 import { formatDate } from '@/lib/utils';
+import { DataLoadError } from '@/components/ui/DataLoadError';
 
 const STATUS_MAP = {
   connected: { label: '接続済み', className: 'bg-green-50 text-green-700' },
@@ -31,11 +32,11 @@ const PROVIDER_LABELS: Record<FileConnection['provider'], string> = {
 
 export default function AdminFilesPage() {
   const { effectiveCompanyId } = useAuth();
-  const { data: connections, loading, source, setData } = useRepositoryData(
+  const { data: connections, loading, source, error, reload, setData } = useRepositoryData(
     `file-connections-${effectiveCompanyId}`,
     () => fetchFileConnections(effectiveCompanyId),
     filterByCompany(MOCK_FILE_CONNECTIONS, effectiveCompanyId),
-    { persistMock: true }
+    { persistMock: true, configuredInitial: [] }
   );
 
   const sync = async (id: string) => {
@@ -63,7 +64,9 @@ export default function AdminFilesPage() {
           description="SharePoint / Google Drive 等との同期設定（OAuth 接続は Supabase Edge Functions で拡張）"
         />
 
-        {loading ? (
+        {error ? (
+          <DataLoadError message={error} onRetry={() => void reload()} />
+        ) : loading ? (
           <p className="text-sm text-slate-500">連携設定を読み込んでいます...</p>
         ) : (
           <div className="grid gap-4">

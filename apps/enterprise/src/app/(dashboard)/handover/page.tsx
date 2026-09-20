@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/Button';
 import { Input, Label, Textarea } from '@/components/ui/Input';
 import { formatDate } from '@/lib/utils';
 import { RouteGuard } from '@/components/auth/RouteGuard';
+import { DataLoadError } from '@/components/ui/DataLoadError';
 
 const STATUS_MAP = {
   draft: { label: '下書き', className: 'bg-slate-100 text-slate-600' },
@@ -29,11 +30,11 @@ const STATUS_MAP = {
 
 export default function HandoverPage() {
   const { user, activeTokenPass, effectiveCompanyId } = useAuth();
-  const { data: allItems, loading, source, setData } = useRepositoryData(
+  const { data: allItems, loading, source, error, reload, setData } = useRepositoryData(
     `handover-${effectiveCompanyId}`,
     () => fetchHandoverItems(effectiveCompanyId),
     filterByCompany(MOCK_HANDOVERS, effectiveCompanyId),
-    { persistMock: true }
+    { persistMock: true, configuredInitial: [] }
   );
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', content: '', from_person: '', to_person: '' });
@@ -98,6 +99,8 @@ export default function HandoverPage() {
             ) : undefined
           }
         />
+
+        {error && <DataLoadError message={error} onRetry={() => void reload()} />}
 
         {showForm && canManage && (
           <Card className="mb-6">

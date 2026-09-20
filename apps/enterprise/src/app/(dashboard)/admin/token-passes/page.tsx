@@ -18,14 +18,15 @@ import { Button } from '@/components/ui/Button';
 import { Input, Label } from '@/components/ui/Input';
 import { ClassificationBadge } from '@/components/ui/Badge';
 import { formatDate } from '@/lib/utils';
+import { DataLoadError } from '@/components/ui/DataLoadError';
 
 export default function AdminTokenPassesPage() {
   const { user, effectiveCompanyId } = useAuth();
-  const { data: passes, loading, source, setData } = useRepositoryData(
+  const { data: passes, loading, source, error, reload, setData } = useRepositoryData(
     `token-passes-${effectiveCompanyId}`,
     () => fetchTokenPasses(effectiveCompanyId),
     filterByCompany(MOCK_TOKEN_PASSES, effectiveCompanyId),
-    { persistMock: true }
+    { persistMock: true, configuredInitial: [] }
   );
   const [showForm, setShowForm] = useState(false);
   const [label, setLabel] = useState('');
@@ -97,6 +98,8 @@ export default function AdminTokenPassesPage() {
             </CardBody>
           </Card>
         )}
+
+        {error && <DataLoadError message={error} onRetry={() => void reload()} />}
 
         {showForm && (
           <Card className="mb-6">

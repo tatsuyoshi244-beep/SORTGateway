@@ -10,13 +10,15 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { formatDate } from '@/lib/utils';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { DataLoadError } from '@/components/ui/DataLoadError';
 
 export default function AdminAuditPage() {
   const { user, effectiveCompanyId } = useAuth();
-  const { data: logs, loading, source } = useRepositoryData(
+  const { data: logs, loading, source, error, reload } = useRepositoryData(
     `audit-${effectiveCompanyId}`,
     () => fetchAuditLogs(effectiveCompanyId),
-    filterByCompany(MOCK_AUDIT_LOGS, effectiveCompanyId)
+    filterByCompany(MOCK_AUDIT_LOGS, effectiveCompanyId),
+    { configuredInitial: [] }
   );
 
   return (
@@ -33,7 +35,9 @@ export default function AdminAuditPage() {
           </p>
         )}
 
-        {loading ? (
+        {error ? (
+          <DataLoadError message={error} onRetry={() => void reload()} />
+        ) : loading ? (
           <p className="text-sm text-slate-500">監査ログを読み込んでいます...</p>
         ) : logs.length === 0 ? (
           <EmptyState title="監査ログがありません" />

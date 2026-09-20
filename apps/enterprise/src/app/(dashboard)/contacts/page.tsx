@@ -12,14 +12,16 @@ import { Card, CardBody } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { RouteGuard } from '@/components/auth/RouteGuard';
+import { DataLoadError } from '@/components/ui/DataLoadError';
 
 export default function ContactsPage() {
   const { effectiveCompanyId } = useAuth();
   const [query, setQuery] = useState('');
-  const { data: contacts, loading } = useRepositoryData(
+  const { data: contacts, loading, error, reload } = useRepositoryData(
     `contacts-${effectiveCompanyId}`,
     () => fetchContacts(effectiveCompanyId),
-    filterByCompany(MOCK_CONTACTS, effectiveCompanyId)
+    filterByCompany(MOCK_CONTACTS, effectiveCompanyId),
+    { configuredInitial: [] }
   );
 
   const filtered = useMemo(() => {
@@ -52,7 +54,9 @@ export default function ContactsPage() {
           />
         </div>
 
-        {loading ? (
+        {error ? (
+          <DataLoadError message={error} onRetry={() => void reload()} />
+        ) : loading ? (
           <p className="text-sm text-slate-500">担当者を読み込んでいます...</p>
         ) : filtered.length === 0 ? (
           <EmptyState title="担当者が見つかりません" />

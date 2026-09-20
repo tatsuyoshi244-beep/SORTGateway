@@ -12,14 +12,15 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
 import { RoleBadge } from '@/components/ui/Badge';
 import { Select } from '@/components/ui/Input';
+import { DataLoadError } from '@/components/ui/DataLoadError';
 
 export default function AdminUsersPage() {
   const { user: currentUser, effectiveCompanyId } = useAuth();
-  const { data: users, loading, source, setData } = useRepositoryData(
+  const { data: users, loading, source, error, reload, setData } = useRepositoryData(
     `users-${effectiveCompanyId}`,
     () => fetchUsers(effectiveCompanyId),
     filterByCompany(MOCK_USERS, effectiveCompanyId),
-    { persistMock: true }
+    { persistMock: true, configuredInitial: [] }
   );
 
   const updateRole = async (id: string, role: UserRole) => {
@@ -56,7 +57,9 @@ export default function AdminUsersPage() {
           description="社員アカウントとロール（employee / manager / executive / admin）の管理"
         />
 
-        {loading ? (
+        {error ? (
+          <DataLoadError message={error} onRetry={() => void reload()} />
+        ) : loading ? (
           <p className="text-sm text-slate-500">ユーザーを読み込んでいます...</p>
         ) : (
           <Card>
