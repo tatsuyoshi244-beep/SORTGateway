@@ -17,6 +17,8 @@ export { MOCK_CHAT_LOGS };
 
 const C = DEMO_COMPANY_ID;
 
+export const DEMO_PASSWORD = 'SortGateway2026!';
+
 export const MOCK_DEPARTMENTS: Department[] = [
   { id: 'dept-1', company_id: C, name: '営業部', code: 'SALES', created_at: '2024-01-01T00:00:00Z' },
   { id: 'dept-2', company_id: C, name: '開発部', code: 'DEV', created_at: '2024-01-01T00:00:00Z' },
@@ -35,6 +37,7 @@ export const MOCK_USERS: User[] = [
   {
     id: 'user-1',
     company_id: C,
+    employee_number: 'EMP-001',
     email: 'employee@sortgateway.local',
     full_name: '山田 太郎',
     role: 'employee',
@@ -46,6 +49,7 @@ export const MOCK_USERS: User[] = [
   {
     id: 'user-2',
     company_id: C,
+    employee_number: 'MGR-001',
     email: 'manager@sortgateway.local',
     full_name: '佐藤 花子',
     role: 'manager',
@@ -57,6 +61,7 @@ export const MOCK_USERS: User[] = [
   {
     id: 'user-3',
     company_id: C,
+    employee_number: 'EXE-001',
     email: 'executive@sortgateway.local',
     full_name: '鈴木 一郎',
     role: 'executive',
@@ -68,6 +73,7 @@ export const MOCK_USERS: User[] = [
   {
     id: 'user-4',
     company_id: C,
+    employee_number: 'ADM-001',
     email: 'admin@sortgateway.local',
     full_name: '管理者 システム',
     role: 'admin',
@@ -78,6 +84,7 @@ export const MOCK_USERS: User[] = [
   {
     id: 'user-super',
     company_id: PLATFORM_COMPANY_ID,
+    employee_number: 'SORT-001',
     email: 'superadmin@sortgateway.local',
     full_name: 'SORT 運営管理者',
     role: 'super_admin',
@@ -86,8 +93,6 @@ export const MOCK_USERS: User[] = [
     created_at: '2024-01-01T00:00:00Z',
   },
 ];
-
-export const DEMO_PASSWORD = 'SortGateway2026!';
 
 export { MOCK_KNOWLEDGE } from '@/lib/mock-lifecycle';
 

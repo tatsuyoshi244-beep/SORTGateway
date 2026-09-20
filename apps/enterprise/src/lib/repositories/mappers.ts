@@ -139,6 +139,7 @@ export function mapUserRow(row: Record<string, unknown>): User {
   return {
     id: row.id as string,
     company_id: String(row.company_id ?? 'demo-company'),
+    employee_number: String(row.employee_number ?? ''),
     email: row.email as string,
     full_name: row.full_name as string,
     role: row.role as UserRole,

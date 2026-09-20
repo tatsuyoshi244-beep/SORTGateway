@@ -47,6 +47,7 @@ ON CONFLICT DO NOTHING;
 UPDATE public.users
 SET
   company_id = 'platform',
+  employee_number = 'SORT-001',
   role = 'super_admin',
   full_name = 'SORT 運営管理者',
   is_active = TRUE
@@ -58,6 +59,7 @@ WHERE id = ':SUPER_ADMIN_AUTH_UUID';
 UPDATE public.users
 SET
   company_id = 'demo-company',
+  employee_number = 'ADM-001',
   role = 'admin',
   full_name = 'デモ 管理者',
   department_id = (

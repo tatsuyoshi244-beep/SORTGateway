@@ -859,7 +859,22 @@ ON CONFLICT (id) DO NOTHING;
 -- 認証ユーザーの documents バケットアクセス（service_role 経由のアップロードは RLS バイパス）
 -- アプリは service_role で Storage に書き込むため、追加ポリシーは任意
 
-COMMENT ON TABLE public.schema_migrations IS 'SORT Gateway DB schema version tracker — /api/ready で phase10 を検証';
+COMMENT ON TABLE public.schema_migrations IS 'SORT Gateway DB schema version tracker — /api/ready で最新バージョンを検証';
 
 -- ########## END schema-phase12-production.sql ##########
 
+
+-- ########## BEGIN schema-phase13-login-identifiers.sql ##########
+
+ALTER TABLE public.users
+  ADD COLUMN IF NOT EXISTS employee_number TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_company_employee_number
+  ON public.users(company_id, employee_number)
+  WHERE employee_number IS NOT NULL;
+
+INSERT INTO public.schema_migrations (version, description)
+VALUES ('phase13', 'Company ID and employee number login')
+ON CONFLICT (version) DO NOTHING;
+
+-- ########## END schema-phase13-login-identifiers.sql ##########

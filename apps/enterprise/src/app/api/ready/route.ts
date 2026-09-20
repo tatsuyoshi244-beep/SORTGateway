@@ -39,7 +39,7 @@ export async function GET() {
         checks: result.checks,
         warnings: result.warnings,
         schema_version: result.schema_version,
-        expected_schema_version: 'phase10',
+        expected_schema_version: 'phase13',
       },
       { status: result.ready ? 200 : 503 }
     );

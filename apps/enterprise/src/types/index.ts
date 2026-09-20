@@ -43,6 +43,7 @@ export interface Department {
 export interface User {
   id: string;
   company_id: string;
+  employee_number: string;
   email: string;
   full_name: string;
   role: UserRole;

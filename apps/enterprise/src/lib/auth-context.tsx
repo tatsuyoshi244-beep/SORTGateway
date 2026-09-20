@@ -46,7 +46,11 @@ interface AuthContextValue {
   effectiveCompanyId: string;
   effectiveCompanyName: string;
   availableCompanies: Company[];
-  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  login: (
+    companyId: string,
+    employeeNumber: string,
+    password: string
+  ) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
   applyTokenPass: (code: string, reason: string) => Promise<{ ok: boolean; error?: string }>;
   clearTokenPass: () => void;
@@ -191,31 +195,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (companyId: string, employeeNumber: string, password: string) => {
       if (supabaseAuth) {
         const client = createBrowserClient();
         if (!client) {
           return { ok: false, error: 'Supabase クライアントを初期化できません' };
         }
-        const { data, error } = await client.auth.signInWithPassword({ email, password });
-        if (error || !data.user) {
-          return { ok: false, error: 'メールアドレスまたはパスワードが正しくありません' };
-        }
-        let profile = await fetchUserProfile(client, data.user.id, data.user.email);
-        if (isSuperAdmin(profile.role)) {
-          profile = {
-            ...profile,
-            tenant_company_id: DEMO_COMPANY_ID,
-            tenant_company_name: DEMO_COMPANY_NAME,
+        try {
+          const response = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ companyId, employeeNumber, password }),
+          });
+          const authResult = (await response.json()) as {
+            access_token?: string;
+            refresh_token?: string;
+            error?: string;
           };
-          sessionStorage.setItem(
-            ACTIVE_TENANT_KEY,
-            JSON.stringify({ id: DEMO_COMPANY_ID, name: DEMO_COMPANY_NAME })
-          );
+          if (!response.ok || !authResult.access_token || !authResult.refresh_token) {
+            return {
+              ok: false,
+              error: authResult.error ?? '企業ID、社員番号、またはパスワードが正しくありません',
+            };
+          }
+          const { data, error } = await client.auth.setSession({
+            access_token: authResult.access_token,
+            refresh_token: authResult.refresh_token,
+          });
+          if (error || !data.user) {
+            return { ok: false, error: 'ログインセッションを開始できませんでした' };
+          }
+          let profile = await fetchUserProfile(client, data.user.id, data.user.email);
+          if (isSuperAdmin(profile.role)) {
+            profile = {
+              ...profile,
+              tenant_company_id: DEMO_COMPANY_ID,
+              tenant_company_name: DEMO_COMPANY_NAME,
+            };
+            sessionStorage.setItem(
+              ACTIVE_TENANT_KEY,
+              JSON.stringify({ id: DEMO_COMPANY_ID, name: DEMO_COMPANY_NAME })
+            );
+          }
+          setUser(profile);
+          postAudit(profile, { action: 'auth.login', resourceType: 'session', result: 'success' });
+          return { ok: true };
+        } catch {
+          return {
+            ok: false,
+            error: 'ログイン処理に接続できませんでした。時間をおいて再度お試しください。',
+          };
         }
-        setUser(profile);
-        postAudit(profile, { action: 'auth.login', resourceType: 'session', result: 'success' });
-        return { ok: true };
       }
 
       if (!allowsDemoAuth()) {
@@ -227,12 +257,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
       }
 
+      const normalizedCompanyId = companyId.trim().toLowerCase();
+      const normalizedEmployeeNumber = employeeNumber.trim().toUpperCase();
       const found = MOCK_USERS.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase() && u.is_active
+        (u) =>
+          u.company_id.toLowerCase() === normalizedCompanyId &&
+          u.employee_number.toUpperCase() === normalizedEmployeeNumber &&
+          u.is_active
       );
       if (!found || password !== DEMO_PASSWORD) {
-        return { ok: false, error: 'メールアドレスまたはパスワードが正しくありません' };
+        return { ok: false, error: '企業ID、社員番号、またはパスワードが正しくありません' };
       }
+
       let session = toSessionUser(found);
       if (isSuperAdmin(session.role)) {
         session = {
