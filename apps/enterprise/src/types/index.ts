@@ -7,6 +7,8 @@ export type CompanyStatus = 'active' | 'suspended' | 'trial';
 
 export interface Company {
   id: string;
+  /** 社員がログイン時に入力する公開可能な企業識別子 */
+  login_id: string;
   name: string;
   slug: string;
   plan: CompanyPlan;

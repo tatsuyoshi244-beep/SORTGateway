@@ -32,6 +32,7 @@ async function writeLocal(companies: Company[]): Promise<void> {
 function mapRow(row: Record<string, unknown>): Company {
   return {
     id: String(row.id),
+    login_id: String(row.login_id ?? row.slug),
     name: String(row.name),
     slug: String(row.slug),
     plan: row.plan as CompanyPlan,
@@ -58,14 +59,16 @@ export async function listCompanies(): Promise<Company[]> {
       if (!error && data) {
         return data.map((r) => mapRow(r as Record<string, unknown>));
       }
+      throw new Error(`企業一覧の取得に失敗しました: ${error?.message ?? 'unknown error'}`);
     }
+    throw new Error('Supabase管理クライアントを初期化できませんでした');
   }
   return enrichStats(await readLocal());
 }
 
 export interface CreateCompanyInput {
   name: string;
-  slug: string;
+  loginId: string;
   plan?: CompanyPlan;
 }
 
@@ -73,8 +76,9 @@ export async function createCompany(input: CreateCompanyInput): Promise<Company>
   const now = new Date().toISOString();
   const company: Company = {
     id: randomUUID(),
+    login_id: input.loginId,
     name: input.name,
-    slug: input.slug,
+    slug: input.loginId,
     plan: input.plan ?? 'standard',
     status: 'trial',
     created_at: now,
@@ -88,11 +92,18 @@ export async function createCompany(input: CreateCompanyInput): Promise<Company>
     const client = createAdminClient();
     if (client) {
       const { data, error } = await client.from('companies').insert(company).select('*').single();
-      if (!error && data) {
+      if (error) throw new Error(`企業の作成に失敗しました: ${error.message}`);
+      if (data) {
         const created = mapRow(data as Record<string, unknown>);
-        await seedCompanyDefaults(client, created);
-        return created;
+        try {
+          await seedCompanyDefaults(client, created);
+          return created;
+        } catch (seedError) {
+          await client.from('companies').delete().eq('id', created.id);
+          throw seedError;
+        }
       }
+      throw new Error('企業の作成結果を確認できませんでした');
     }
   }
 
@@ -106,11 +117,12 @@ async function seedCompanyDefaults(
   client: NonNullable<ReturnType<typeof createAdminClient>>,
   company: Company
 ): Promise<void> {
-  await client.from('departments').insert({
+  const { error } = await client.from('departments').insert({
     company_id: company.id,
     name: '本社',
     code: 'HQ',
   });
+  if (error) throw new Error(`初期部署の作成に失敗しました: ${error.message}`);
 }
 
 export async function updateCompanyStatus(
@@ -128,8 +140,11 @@ export async function updateCompanyStatus(
         .eq('id', id)
         .select('*')
         .single();
-      if (!error && data) return mapRow(data as Record<string, unknown>);
+      if (error) throw new Error(`企業状態の更新に失敗しました: ${error.message}`);
+      if (data) return mapRow(data as Record<string, unknown>);
+      return null;
     }
+    throw new Error('Supabase管理クライアントを初期化できませんでした');
   }
 
   const list = await readLocal();

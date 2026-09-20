@@ -52,7 +52,7 @@ async function verifyBearerToken(req: NextRequest): Promise<SessionUser | null> 
   const { data, error } = await admin.auth.getUser(token);
   if (error || !data.user) return null;
 
-  return fetchUserProfile(admin, data.user.id, data.user.email);
+  return await fetchUserProfile(admin, data.user.id);
 }
 
 export async function authenticateRequest(
@@ -138,4 +138,3 @@ export function assertCompanyScope(
   }
   return null;
 }
-

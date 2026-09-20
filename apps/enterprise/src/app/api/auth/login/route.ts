@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'ログイン機能を利用できません。' }, { status: 503 });
   }
 
-  const { companyId, employeeNumber } = normalizeLoginIdentifiers(
+  const { companyId: loginId, employeeNumber } = normalizeLoginIdentifiers(
     body.companyId as string,
     body.employeeNumber as string
   );
@@ -42,10 +42,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'ログイン機能を利用できません。' }, { status: 503 });
   }
 
+  const { data: company, error: companyError } = await admin
+    .from('companies')
+    .select('id, status')
+    .eq('login_id', loginId)
+    .maybeSingle();
+  if (companyError || !company || company.status === 'suspended') {
+    return NextResponse.json({ error: INVALID_CREDENTIALS }, { status: 401 });
+  }
+
   const { data: profile, error: profileError } = await admin
     .from('users')
     .select('email, is_active')
-    .eq('company_id', companyId)
+    .eq('company_id', String(company.id))
     .eq('employee_number', employeeNumber)
     .maybeSingle();
 

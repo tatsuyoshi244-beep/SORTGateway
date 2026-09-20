@@ -1,6 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SessionUser, UserRole } from '@/types';
-import { DEMO_COMPANY_ID, DEMO_COMPANY_NAME } from '@/lib/tenant/constants';
 
 interface UserProfileRow {
   id: string;
@@ -25,23 +24,8 @@ function joinName(
 /** auth.users と public.users を連携してセッションユーザーを構築。失敗時は employee として安全側に倒す */
 export async function fetchUserProfile(
   client: SupabaseClient,
-  authUserId: string,
-  authEmail?: string | null
-): Promise<SessionUser> {
-  const safeFallback = (id: string, email: string): SessionUser => {
-    const name = email.split('@')[0] || 'ユーザー';
-    return {
-      id,
-      email,
-      full_name: name,
-      display_name: name,
-      role: 'employee',
-      company_id: DEMO_COMPANY_ID,
-      company_name: DEMO_COMPANY_NAME,
-      department_id: null,
-    };
-  };
-
+  authUserId: string
+): Promise<SessionUser | null> {
   try {
     const { data, error } = await client
       .from('users')
@@ -52,12 +36,12 @@ export async function fetchUserProfile(
       .maybeSingle();
 
     if (error || !data) {
-      return safeFallback(authUserId, authEmail ?? '');
+      return null;
     }
 
     const row = data as UserProfileRow;
-    if (!row.is_active) {
-      return safeFallback(authUserId, row.email ?? authEmail ?? '');
+    if (!row.is_active || !row.company_id) {
+      return null;
     }
 
     return {
@@ -66,12 +50,12 @@ export async function fetchUserProfile(
       full_name: row.full_name,
       display_name: row.full_name,
       role: row.role ?? 'employee',
-      company_id: row.company_id ?? DEMO_COMPANY_ID,
-      company_name: joinName(row.companies) ?? DEMO_COMPANY_NAME,
+      company_id: row.company_id,
+      company_name: joinName(row.companies) ?? '',
       department_id: row.department_id,
       department_name: joinName(row.departments),
     };
   } catch {
-    return safeFallback(authUserId, authEmail ?? '');
+    return null;
   }
 }

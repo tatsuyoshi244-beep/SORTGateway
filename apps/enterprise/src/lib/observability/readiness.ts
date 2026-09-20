@@ -7,7 +7,7 @@ import {
   isSupabaseConfigured,
 } from '@/lib/env';
 
-export const EXPECTED_SCHEMA_VERSION = 'phase13';
+export const EXPECTED_SCHEMA_VERSION = 'phase14';
 
 export async function checkSupabaseConnection(): Promise<boolean> {
   const client = createAdminClient();

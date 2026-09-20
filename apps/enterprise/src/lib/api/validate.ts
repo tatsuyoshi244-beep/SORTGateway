@@ -74,17 +74,21 @@ export function validateTokenVerifyBody(body: unknown): ValidateResult & { code?
 
 export function validateCompanyCreateBody(body: unknown): ValidateResult & {
   name?: string;
-  slug?: string;
+  loginId?: string;
   plan?: CompanyPlan;
+  adminFullName?: string;
+  adminEmployeeNumber?: string;
+  adminEmail?: string;
+  adminPassword?: string;
 } {
   if (!body || typeof body !== 'object') return fail('リクエストボディが不正です');
   const b = body as Record<string, unknown>;
   const name = requireString(b.name, 'name', { min: 1, max: 120 });
   if (!name.ok) return name;
-  const slug = requireString(b.slug, 'slug', { min: 2, max: 64 });
-  if (!slug.ok) return slug;
-  if (!/^[a-z0-9-]+$/.test(slug.value!)) {
-    return fail('slug は小文字英数字とハイフンのみです');
+  const loginId = requireString(b.loginId, '企業ID', { min: 2, max: 64 });
+  if (!loginId.ok) return loginId;
+  if (!/^[a-z0-9][a-z0-9_-]+$/.test(loginId.value!)) {
+    return fail('企業IDは小文字英数字・ハイフン・アンダースコアのみです');
   }
   let plan: CompanyPlan | undefined;
   if (b.plan != null) {
@@ -92,7 +96,110 @@ export function validateCompanyCreateBody(body: unknown): ValidateResult & {
     if (!p.ok) return p;
     plan = p.value;
   }
-  return { ok: true, name: name.value, slug: slug.value, plan };
+  const adminFullName = requireString(b.adminFullName, '初期管理者名', { min: 1, max: 120 });
+  if (!adminFullName.ok) return adminFullName;
+  const adminEmployeeNumber = requireString(b.adminEmployeeNumber, '初期管理者の社員番号', {
+    min: 1,
+    max: 64,
+  });
+  if (!adminEmployeeNumber.ok) return adminEmployeeNumber;
+  const normalizedEmployeeNumber = adminEmployeeNumber.value!.toUpperCase();
+  if (!/^[A-Z0-9][A-Z0-9_-]*$/.test(normalizedEmployeeNumber)) {
+    return fail('社員番号は英数字・ハイフン・アンダースコアのみです');
+  }
+  const adminEmail = requireString(b.adminEmail, '初期管理者メール', { min: 3, max: 254 });
+  if (!adminEmail.ok || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail.value!)) {
+    return fail('初期管理者メールが不正です');
+  }
+  const adminPassword = requireString(b.adminPassword, '初期パスワード', { min: 12, max: 256 });
+  if (!adminPassword.ok) return adminPassword;
+  return {
+    ok: true,
+    name: name.value,
+    loginId: loginId.value,
+    plan,
+    adminFullName: adminFullName.value,
+    adminEmployeeNumber: normalizedEmployeeNumber,
+    adminEmail: adminEmail.value!.toLowerCase(),
+    adminPassword: adminPassword.value,
+  };
+}
+
+export function validateUserCreateBody(body: unknown): ValidateResult & {
+  fullName?: string;
+  employeeNumber?: string;
+  email?: string;
+  password?: string;
+  role?: Exclude<UserRole, 'super_admin'>;
+  departmentId?: string | null;
+} {
+  if (!body || typeof body !== 'object') return fail('リクエストボディが不正です');
+  const b = body as Record<string, unknown>;
+  const fullName = requireString(b.fullName, '氏名', { min: 1, max: 120 });
+  if (!fullName.ok) return fullName;
+  const employeeNumber = requireString(b.employeeNumber, '社員番号', { min: 1, max: 64 });
+  if (!employeeNumber.ok) return employeeNumber;
+  const normalizedEmployeeNumber = employeeNumber.value!.toUpperCase();
+  if (!/^[A-Z0-9][A-Z0-9_-]*$/.test(normalizedEmployeeNumber)) {
+    return fail('社員番号は英数字・ハイフン・アンダースコアのみです');
+  }
+  const email = requireString(b.email, 'メール', { min: 3, max: 254 });
+  if (!email.ok || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value!)) {
+    return fail('メールが不正です');
+  }
+  const password = requireString(b.password, '初期パスワード', { min: 12, max: 256 });
+  if (!password.ok) return password;
+  const role = requireEnum(b.role ?? 'employee', 'ロール', [
+    'employee',
+    'manager',
+    'executive',
+    'admin',
+  ] as const);
+  if (!role.ok) return role;
+  let departmentId: string | null = null;
+  if (b.departmentId != null && b.departmentId !== '') {
+    const department = requireString(b.departmentId, '部署', { min: 1, max: 64 });
+    if (!department.ok) return department;
+    departmentId = department.value!;
+  }
+  return {
+    ok: true,
+    fullName: fullName.value,
+    employeeNumber: normalizedEmployeeNumber,
+    email: email.value!.toLowerCase(),
+    password: password.value,
+    role: role.value,
+    departmentId,
+  };
+}
+
+export function validateUserPatchBody(body: unknown): ValidateResult & {
+  id?: string;
+  role?: Exclude<UserRole, 'super_admin'>;
+  isActive?: boolean;
+} {
+  if (!body || typeof body !== 'object') return fail('リクエストボディが不正です');
+  const b = body as Record<string, unknown>;
+  const id = requireString(b.id, 'ユーザーID', { min: 1, max: 64 });
+  if (!id.ok) return id;
+  let role: Exclude<UserRole, 'super_admin'> | undefined;
+  if (b.role != null) {
+    const parsedRole = requireEnum(b.role, 'ロール', [
+      'employee',
+      'manager',
+      'executive',
+      'admin',
+    ] as const);
+    if (!parsedRole.ok) return parsedRole;
+    role = parsedRole.value;
+  }
+  let isActive: boolean | undefined;
+  if (b.isActive != null) {
+    if (typeof b.isActive !== 'boolean') return fail('利用状態が不正です');
+    isActive = b.isActive;
+  }
+  if (role == null && isActive == null) return fail('変更内容が必要です');
+  return { ok: true, id: id.value, role, isActive };
 }
 
 export function validateCompanyPatchBody(body: unknown): ValidateResult & {

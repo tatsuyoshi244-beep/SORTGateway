@@ -4,6 +4,7 @@ import { DEMO_COMPANY_ID, PLATFORM_COMPANY_ID } from '@/lib/tenant/constants';
 export const MOCK_COMPANIES: Company[] = [
   {
     id: DEMO_COMPANY_ID,
+    login_id: 'demo-company',
     name: 'デモ株式会社',
     slug: 'demo-company',
     plan: 'enterprise',
@@ -16,6 +17,7 @@ export const MOCK_COMPANIES: Company[] = [
   },
   {
     id: 'acme-corp',
+    login_id: 'acme-corp',
     name: 'ACME商事株式会社',
     slug: 'acme-corp',
     plan: 'standard',
@@ -28,6 +30,7 @@ export const MOCK_COMPANIES: Company[] = [
   },
   {
     id: PLATFORM_COMPANY_ID,
+    login_id: 'platform',
     name: 'SORT Gateway 運営',
     slug: 'platform',
     plan: 'enterprise',

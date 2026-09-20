@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { validateTokenVerifyBody } from '@/lib/api/validate';
+import {
+  validateCompanyCreateBody,
+  validateTokenVerifyBody,
+  validateUserCreateBody,
+} from '@/lib/api/validate';
 
 describe('token pass validation', () => {
   it('requires an access reason', () => {
@@ -20,5 +24,40 @@ describe('token pass validation', () => {
       code: 'PASS-1234',
       reason: '契約内容の確認',
     });
+  });
+});
+
+describe('identity onboarding validation', () => {
+  it('normalizes a complete company and initial admin request', () => {
+    const result = validateCompanyCreateBody({
+      name: ' テスト株式会社 ',
+      loginId: 'test-company',
+      plan: 'standard',
+      adminFullName: ' 管理 太郎 ',
+      adminEmployeeNumber: ' adm-001 ',
+      adminEmail: 'ADMIN@example.com',
+      adminPassword: 'long-password-123',
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      name: 'テスト株式会社',
+      loginId: 'test-company',
+      adminFullName: '管理 太郎',
+      adminEmployeeNumber: 'ADM-001',
+      adminEmail: 'admin@example.com',
+    });
+  });
+
+  it('rejects reserved super admin creation through tenant user input', () => {
+    const result = validateUserCreateBody({
+      fullName: '不正 管理者',
+      employeeNumber: 'ROOT-001',
+      email: 'root@example.com',
+      password: 'long-password-123',
+      role: 'super_admin',
+    });
+
+    expect(result.ok).toBe(false);
   });
 });

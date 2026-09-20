@@ -157,10 +157,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data } = await client.auth.getSession();
       if (!mounted) return;
       if (data.session?.user) {
-        const profile = applyTenantOverride(
-          await fetchUserProfile(client, data.session.user.id, data.session.user.email)
-        );
-        if (mounted) setUser(profile);
+        const fetched = await fetchUserProfile(client, data.session.user.id);
+        if (mounted) setUser(fetched ? applyTenantOverride(fetched) : null);
       } else {
         setUser(null);
       }
@@ -172,10 +170,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: listener } = client.auth.onAuthStateChange(async (_event, session) => {
       if (!mounted) return;
       if (session?.user) {
-        const profile = applyTenantOverride(
-          await fetchUserProfile(client, session.user.id, session.user.email)
-        );
-        setUser(profile);
+        const fetched = await fetchUserProfile(client, session.user.id);
+        setUser(fetched ? applyTenantOverride(fetched) : null);
       } else {
         setUser(null);
       }
@@ -225,7 +221,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (error || !data.user) {
             return { ok: false, error: 'ログインセッションを開始できませんでした' };
           }
-          let profile = await fetchUserProfile(client, data.user.id, data.user.email);
+          let profile = await fetchUserProfile(client, data.user.id);
+          if (!profile) {
+            await client.auth.signOut();
+            return { ok: false, error: 'このアカウントは利用できません。管理者へ確認してください。' };
+          }
           if (isSuperAdmin(profile.role)) {
             profile = {
               ...profile,
