@@ -5,17 +5,24 @@ import { filterByCompany } from '@/lib/tenant/filter';
 import {
   MOCK_AUDIT_LOGS,
   MOCK_CONTACTS,
+  MOCK_DEPARTMENTS,
   MOCK_FILE_CONNECTIONS,
   MOCK_HANDOVERS,
   MOCK_KNOWLEDGE,
+  MOCK_MEETING_MINUTES,
+  MOCK_MINUTE_ACCESS_REQUESTS,
   MOCK_TOKEN_PASSES,
   MOCK_USERS,
 } from '@/lib/mock-data';
 import type {
   AuditLog,
+  Department,
   FileConnection,
   HandoverItem,
   KnowledgeItem,
+  MeetingMinute,
+  MinuteAccessRequest,
+  MinuteAccessRequestStatus,
   ResponsiblePerson,
   TokenPass,
   User,
@@ -37,6 +44,25 @@ export interface FetchResult<T> {
   data: T;
   source: DataSource;
   error?: string;
+}
+
+export async function fetchDepartments(companyId: string): Promise<FetchResult<Department[]>> {
+  const mock = filterByCompany(MOCK_DEPARTMENTS, companyId);
+  return withSupabase(mock, [], async (client) => {
+    const { data, error } = await client
+      .from('departments')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('name');
+    if (error || !data) return null;
+    return data.map((row) => ({
+      id: String(row.id),
+      company_id: String(row.company_id),
+      name: String(row.name),
+      code: String(row.code),
+      created_at: String(row.created_at),
+    }));
+  });
 }
 
 async function withSupabase<T>(
@@ -130,6 +156,148 @@ export async function createHandoverItem(
 
   if (error || !data) return null;
   return mapHandoverRow(data as Record<string, unknown>);
+}
+
+function joinedName(value: unknown): string | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  if (Array.isArray(value)) {
+    const first = value[0] as Record<string, unknown> | undefined;
+    return first?.name ? String(first.name) : undefined;
+  }
+  const record = value as Record<string, unknown>;
+  return record.name ? String(record.name) : undefined;
+}
+
+function mapMeetingMinute(row: Record<string, unknown>): MeetingMinute {
+  return {
+    id: String(row.id),
+    company_id: String(row.company_id),
+    title: String(row.title),
+    meeting_date: String(row.meeting_date),
+    department_id: String(row.department_id),
+    department_name: row.department_name ? String(row.department_name) : joinedName(row.departments),
+    participants: String(row.participants ?? ''),
+    agenda: String(row.agenda ?? ''),
+    decisions: String(row.decisions ?? ''),
+    action_items: String(row.action_items ?? ''),
+    created_by: String(row.created_by),
+    created_by_name: row.created_by_name ? String(row.created_by_name) : joinedName(row.created_user),
+    created_at: String(row.created_at),
+    updated_at: String(row.updated_at),
+  };
+}
+
+function mapMinuteAccessRequest(row: Record<string, unknown>): MinuteAccessRequest {
+  return {
+    id: String(row.id),
+    company_id: String(row.company_id),
+    minute_id: String(row.minute_id),
+    minute_title: joinedName(row.meeting_minutes) ?? String(row.minute_title ?? ''),
+    requester_id: String(row.requester_id),
+    requester_name: joinedName(row.requester) ?? String(row.requester_name ?? ''),
+    requester_department_id: row.requester_department_id
+      ? String(row.requester_department_id)
+      : null,
+    requester_department_name: joinedName(row.requester_department),
+    target_department_id: String(row.target_department_id),
+    target_department_name: joinedName(row.target_department),
+    reason: String(row.reason),
+    status: row.status as MinuteAccessRequestStatus,
+    requested_at: String(row.requested_at),
+    reviewed_by: row.reviewed_by ? String(row.reviewed_by) : null,
+    reviewed_by_name: joinedName(row.reviewer),
+    reviewed_at: row.reviewed_at ? String(row.reviewed_at) : null,
+  };
+}
+
+export async function fetchMeetingMinutes(
+  companyId: string
+): Promise<FetchResult<MeetingMinute[]>> {
+  const mock = filterByCompany(MOCK_MEETING_MINUTES, companyId);
+  return withSupabase(mock, [], async (client) => {
+    const { data, error } = await client.rpc('list_meeting_minutes_for_user');
+    if (error || !data) return null;
+    return (data as Record<string, unknown>[])
+      .map((row) => mapMeetingMinute(row))
+      .filter((minute: MeetingMinute) => minute.company_id === companyId);
+  });
+}
+
+export async function createMeetingMinute(
+  item: Omit<MeetingMinute, 'id' | 'created_at' | 'updated_at' | 'department_name' | 'created_by_name'>
+): Promise<MeetingMinute | null> {
+  const now = new Date().toISOString();
+  if (!isSupabaseConfigured()) {
+    return { ...item, id: `minute-${Date.now()}`, created_at: now, updated_at: now };
+  }
+  const client = createBrowserClient();
+  if (!client) return null;
+  const { data, error } = await client
+    .from('meeting_minutes')
+    .insert(item)
+    .select('*, departments:department_id(name), created_user:created_by(name:full_name)')
+    .single();
+  if (error || !data) return null;
+  return mapMeetingMinute(data as Record<string, unknown>);
+}
+
+export async function fetchMinuteAccessRequests(
+  companyId: string
+): Promise<FetchResult<MinuteAccessRequest[]>> {
+  const mock = filterByCompany(MOCK_MINUTE_ACCESS_REQUESTS, companyId);
+  return withSupabase(mock, [], async (client) => {
+    const { data, error } = await client
+      .from('minute_access_requests')
+      .select('*, meeting_minutes:minute_id(name:title), requester:requester_id(name:full_name), requester_department:requester_department_id(name), target_department:target_department_id(name), reviewer:reviewed_by(name:full_name)')
+      .eq('company_id', companyId)
+      .order('requested_at', { ascending: false });
+    if (error || !data) return null;
+    return data.map((row) => mapMinuteAccessRequest(row as Record<string, unknown>));
+  });
+}
+
+export async function createMinuteAccessRequest(
+  input: Omit<MinuteAccessRequest, 'id' | 'status' | 'requested_at' | 'reviewed_by' | 'reviewed_by_name' | 'reviewed_at'>
+): Promise<MinuteAccessRequest | null> {
+  if (!isSupabaseConfigured()) {
+    return {
+      ...input,
+      id: `minute-request-${Date.now()}`,
+      status: 'pending',
+      requested_at: new Date().toISOString(),
+      reviewed_by: null,
+      reviewed_at: null,
+    };
+  }
+  const client = createBrowserClient();
+  if (!client) return null;
+  const { data: requestId, error: requestError } = await client.rpc(
+    'request_meeting_minute_access',
+    { p_minute_id: input.minute_id, p_reason: input.reason }
+  );
+  if (requestError || !requestId) return null;
+  const { data, error } = await client
+    .from('minute_access_requests')
+    .select('*, meeting_minutes:minute_id(name:title), requester:requester_id(name:full_name), requester_department:requester_department_id(name), target_department:target_department_id(name), reviewer:reviewed_by(name:full_name)')
+    .eq('id', requestId)
+    .single();
+  if (error || !data) return null;
+  return mapMinuteAccessRequest(data as Record<string, unknown>);
+}
+
+export async function reviewMinuteAccessRequest(
+  id: string,
+  status: Exclude<MinuteAccessRequestStatus, 'pending'>,
+  reviewerId: string
+): Promise<boolean> {
+  if (!isSupabaseConfigured()) return true;
+  const client = createBrowserClient();
+  if (!client) return false;
+  const { error } = await client
+    .from('minute_access_requests')
+    .update({ status, reviewed_by: reviewerId, reviewed_at: new Date().toISOString() })
+    .eq('id', id);
+  return !error;
 }
 
 export async function fetchContacts(

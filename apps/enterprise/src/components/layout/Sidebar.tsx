@@ -25,6 +25,8 @@ import {
   Plug,
   BarChart3,
   HelpCircle,
+  ClipboardList,
+  UserCheck,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -54,6 +56,8 @@ const ICONS: Record<string, LucideIcon> = {
   Plug,
   BarChart3,
   HelpCircle,
+  ClipboardList,
+  UserCheck,
 };
 
 const SECTION_LABELS: Record<NavItem['section'], string> = {

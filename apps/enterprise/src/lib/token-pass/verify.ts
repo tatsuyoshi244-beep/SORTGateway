@@ -5,6 +5,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isSupabaseConfigured, isSupabaseAdminConfigured } from '@/lib/env';
 import { hashToken, tokensMatch } from '@/lib/token-pass/hash';
+import { verifyDemoTokenPass } from '@/lib/token-pass/demo-token';
 
 export interface TokenPassVerifyResult {
   ok: boolean;
@@ -82,6 +83,8 @@ function findMockPassByHash(plain: string): MockTokenRecord | undefined {
 }
 
 function verifyMock(plain: string, userRole?: UserRole, userId?: string): TokenPassVerifyResult {
+  const issuedDemoPass = verifyDemoTokenPass(plain.trim());
+  if (issuedDemoPass) return validatePass(issuedDemoPass, userRole, userId);
   const pass = findMockPassByHash(plain);
   if (!pass) {
     if (plain.trim().toUpperCase() === DEMO_TOKEN_PASS_CODE) {

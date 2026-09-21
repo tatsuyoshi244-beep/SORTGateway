@@ -65,7 +65,7 @@ export function validateChatBody(body: unknown): ValidateResult & { message?: st
 export function validateTokenVerifyBody(body: unknown): ValidateResult & { code?: string; reason?: string } {
   if (!body || typeof body !== 'object') return fail('リクエストボディが不正です');
   const b = body as Record<string, unknown>;
-  const code = requireString(b.code, 'code', { min: 4, max: 64 });
+  const code = requireString(b.code, 'code', { min: 4, max: 2048 });
   if (!code.ok) return code;
   const reason = requireString(b.reason, 'reason', { min: 2, max: 200 });
   if (!reason.ok) return reason;

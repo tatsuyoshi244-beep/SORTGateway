@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { KeyRound, Plus, ShieldCheck, UserCheck } from 'lucide-react';
+import { Copy, KeyRound, Plus, ShieldCheck, UserCheck } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useRepositoryData } from '@/lib/hooks/use-repository-data';
 import {
@@ -11,7 +11,7 @@ import {
   updateTokenPassActive,
 } from '@/lib/repositories';
 import { MOCK_TOKEN_PASSES, MOCK_USERS } from '@/lib/mock-data';
-import { DEMO_TOKEN_PASS_CODE } from '@/lib/env';
+import { apiFetch } from '@/lib/api/client';
 import { filterByCompany } from '@/lib/tenant/filter';
 import { RouteGuard } from '@/components/auth/RouteGuard';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -26,6 +26,10 @@ import type { InformationClassification, UserRole } from '@/types';
 
 const ISSUABLE_ROLES: UserRole[] = ['employee', 'manager', 'executive', 'admin'];
 const ISSUABLE_SCOPES: InformationClassification[] = ['confidential', 'executive_only'];
+
+function defaultExpiry(): string {
+  return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+}
 
 export default function AdminTokenPassesPage() {
   const { user, effectiveCompanyId } = useAuth();
@@ -43,7 +47,7 @@ export default function AdminTokenPassesPage() {
   );
   const [showForm, setShowForm] = useState(false);
   const [label, setLabel] = useState('Q2 機密レビュー用');
-  const [expires, setExpires] = useState('');
+  const [expires, setExpires] = useState(defaultExpiry);
   const [issuedTo, setIssuedTo] = useState('');
   const [allowedRoles, setAllowedRoles] = useState<UserRole[]>([
     'manager',
@@ -56,6 +60,9 @@ export default function AdminTokenPassesPage() {
   ]);
   const [maxUses, setMaxUses] = useState('50');
   const [issuedPlainCode, setIssuedPlainCode] = useState<string | null>(null);
+  const [issueError, setIssueError] = useState('');
+  const [issuing, setIssuing] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (issuedTo || users.length === 0) return;
@@ -66,31 +73,51 @@ export default function AdminTokenPassesPage() {
   }, [issuedTo, source, users]);
 
   const issue = async () => {
-    if (!label.trim() || !expires || !issuedTo || scopes.length === 0 || allowedRoles.length === 0) {
+    if (!user || !label.trim() || !expires || !issuedTo || scopes.length === 0 || allowedRoles.length === 0) {
+      setIssueError('発行理由・対象社員・期限・権限範囲を確認してください。');
       return;
     }
-
-    const created = await createTokenPass({
+    setIssueError('');
+    setIssuing(true);
+    let created = null;
+    const input = {
       company_id: effectiveCompanyId,
-      label,
+      label: label.trim(),
       expires_at: new Date(expires).toISOString(),
-      created_by: user?.id,
+      created_by: user.id,
       issued_to: issuedTo,
       classification_scope: scopes,
       allowed_roles: allowedRoles,
       max_uses: maxUses ? Number(maxUses) : null,
-    });
+    };
+    try {
+      if (source === 'mock') {
+        const response = await apiFetch(user, '/api/token-pass/issue', {
+          method: 'POST',
+          body: JSON.stringify(input),
+        });
+        const data = await response.json() as { pass?: typeof passes[number]; error?: { message?: string } };
+        if (response.ok && data.pass) created = data.pass;
+        else setIssueError(data.error?.message ?? 'デモトークンパスを発行できませんでした。');
+      } else {
+        created = await createTokenPass(input);
+        if (!created) setIssueError('トークンパスを発行できませんでした。');
+      }
+    } catch {
+      setIssueError('通信エラーのためトークンパスを発行できませんでした。');
+    } finally {
+      setIssuing(false);
+    }
 
     if (created) {
       setData((prev) => [created, ...prev]);
       if (created.plain_code) {
         setIssuedPlainCode(created.plain_code);
       }
+      setLabel('');
+      setExpires(defaultExpiry());
+      setShowForm(false);
     }
-
-    setLabel('');
-    setExpires('');
-    setShowForm(false);
   };
 
   const toggleRole = (role: UserRole) => {
@@ -99,10 +126,28 @@ export default function AdminTokenPassesPage() {
     );
   };
 
+  const selectIssuedTo = (id: string) => {
+    setIssuedTo(id);
+    const targetRole = users.find((candidate) => candidate.id === id)?.role;
+    if (targetRole) {
+      setAllowedRoles((current) => current.includes(targetRole) ? current : [...current, targetRole]);
+    }
+  };
+
   const toggleScope = (scope: InformationClassification) => {
     setScopes((current) =>
       current.includes(scope) ? current.filter((value) => value !== scope) : [...current, scope]
     );
+  };
+
+  const copyIssuedCode = async () => {
+    if (!issuedPlainCode) return;
+    try {
+      await navigator.clipboard.writeText(issuedPlainCode);
+      setCopied(true);
+    } catch {
+      setIssueError('コピーできませんでした。コードを長押ししてコピーしてください。');
+    }
   };
 
   const userName = (id: string | null) =>
@@ -169,15 +214,12 @@ export default function AdminTokenPassesPage() {
             <CardBody>
               <p className="font-semibold text-blue-900">公開デモで確認する手順</p>
               <ol className="mt-2 space-y-1 text-sm text-blue-900">
-                <li>1. この画面で「鈴木 一郎」向けの発行内容を確認</li>
-                <li>2. ログアウトし、公開デモの「鈴木 一郎（EXE-001）」でログイン</li>
-                <li>3. 画面上部の「トークンパス」を開き、「デモパスを入力」を押して適用</li>
-                <li>4. AIチャットまたはナレッジ検索で機密情報の表示を確認</li>
+                <li>1. 「新規発行」を押し、対象社員・期限・閲覧範囲を選んで発行</li>
+                <li>2. 表示された署名付きコードをコピー</li>
+                <li>3. ログアウトし、発行先の社員でログイン</li>
+                <li>4. 画面上部の「トークンパス」でコードと利用理由を入力して適用</li>
               </ol>
-              <div className="mt-3 rounded-lg border border-blue-200 bg-white px-3 py-2">
-                <p className="text-xs text-slate-500">デモ確認用コード</p>
-                <p className="font-mono font-semibold text-navy-900">{DEMO_TOKEN_PASS_CODE}</p>
-              </div>
+              <p className="mt-3 text-xs text-blue-800">発行コードは対象社員・企業・権限・期限を署名で保護しています。別社員では使用できません。</p>
             </CardBody>
           </Card>
         )}
@@ -186,10 +228,15 @@ export default function AdminTokenPassesPage() {
           <Card className="mb-6 border-amber-300 bg-amber-50">
             <CardBody>
               <p className="font-semibold text-amber-900">発行したトークン（この画面を閉じると再表示できません）</p>
-              <p className="mt-2 font-mono text-lg text-navy-900">{issuedPlainCode}</p>
-              <Button className="mt-3" size="sm" variant="secondary" onClick={() => setIssuedPlainCode(null)}>
-                確認しました
-              </Button>
+              <p className="mt-2 break-all font-mono text-sm text-navy-900">{issuedPlainCode}</p>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" onClick={() => void copyIssuedCode()}>
+                  <Copy className="h-4 w-4" />{copied ? 'コピー済み' : 'コードをコピー'}
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => { setIssuedPlainCode(null); setCopied(false); }}>
+                  確認しました
+                </Button>
+              </div>
             </CardBody>
           </Card>
         )}
@@ -208,8 +255,7 @@ export default function AdminTokenPassesPage() {
                 <Select
                   id="issued-to"
                   value={issuedTo}
-                  disabled={source === 'mock'}
-                  onChange={(e) => setIssuedTo(e.target.value)}
+                  onChange={(e) => selectIssuedTo(e.target.value)}
                 >
                   <option value="">選択してください</option>
                   {users.filter((candidate) => candidate.is_active).map((candidate) => (
@@ -218,7 +264,6 @@ export default function AdminTokenPassesPage() {
                     </option>
                   ))}
                 </Select>
-                {source === 'mock' && <p className="mt-1 text-xs text-blue-700">デモでは役員アカウントに固定されます</p>}
               </div>
               <div>
                 <Label htmlFor="token-expiry">有効期限</Label>
@@ -263,8 +308,9 @@ export default function AdminTokenPassesPage() {
                 </div>
               </fieldset>
               <div className="flex items-end md:col-span-2">
-                <Button onClick={() => void issue()}>発行</Button>
+                <Button onClick={() => void issue()} disabled={issuing}>{issuing ? '発行中...' : '発行'}</Button>
               </div>
+              {issueError && <p role="alert" className="text-sm text-red-700 md:col-span-2">{issueError}</p>}
             </CardBody>
           </Card>
         )}

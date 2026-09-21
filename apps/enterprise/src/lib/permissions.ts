@@ -6,11 +6,13 @@ export type RouteKey =
   | 'chat'
   | 'knowledge'
   | 'handover'
+  | 'minutes'
   | 'contacts'
   | 'admin'
   | 'admin_knowledge'
   | 'admin_users'
   | 'admin_token_passes'
+  | 'admin_minute_access'
   | 'admin_audit'
   | 'admin_files'
   | 'admin_documents'
@@ -51,6 +53,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'chat', href: '/chat', label: 'AIチャット', icon: 'MessageSquare', section: 'main' },
   { key: 'knowledge', href: '/knowledge', label: 'ナレッジ検索', icon: 'BookOpen', section: 'main' },
   { key: 'handover', href: '/handover', label: '引継ぎ情報', icon: 'ArrowRightLeft', section: 'main' },
+  { key: 'minutes', href: '/minutes', label: '会議議事録', icon: 'ClipboardList', section: 'main' },
   { key: 'contacts', href: '/contacts', label: '担当者検索', icon: 'Users', section: 'main' },
   { key: 'admin', href: '/admin', label: '管理者ダッシュボード', icon: 'Shield', section: 'admin' },
   { key: 'admin_knowledge', href: '/admin/knowledge', label: 'ナレッジ管理', icon: 'FileText', section: 'management' },
@@ -58,6 +61,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'admin_documents', href: '/admin/documents', label: 'ドキュメント管理', icon: 'FileStack', section: 'management' },
   { key: 'admin_users', href: '/admin/users', label: 'ユーザー・ロール', icon: 'UserCog', section: 'admin' },
   { key: 'admin_token_passes', href: '/admin/token-passes', label: 'トークンパス', icon: 'KeyRound', section: 'admin' },
+  { key: 'admin_minute_access', href: '/admin/minute-access', label: '議事録閲覧申請', icon: 'UserCheck', section: 'admin' },
   { key: 'admin_audit', href: '/admin/audit', label: '監査ログ', icon: 'ScrollText', section: 'admin' },
   { key: 'admin_files', href: '/admin/files', label: 'ファイル連携', icon: 'FolderSync', section: 'admin' },
   { key: 'admin_companies', href: '/admin/companies', label: '企業管理', icon: 'Building2', section: 'admin' },
@@ -76,12 +80,14 @@ const ROUTE_ACCESS: Record<RouteKey, UserRole[]> = {
   chat: ALL_EMPLOYEE_ROLES,
   knowledge: ALL_EMPLOYEE_ROLES,
   handover: ALL_EMPLOYEE_ROLES,
+  minutes: ALL_EMPLOYEE_ROLES,
   contacts: ALL_EMPLOYEE_ROLES,
   admin: MANAGEMENT_ROLES,
   admin_knowledge: MANAGEMENT_ROLES,
   admin_knowledge_health: MANAGEMENT_ROLES,
   admin_users: ['admin', 'super_admin'],
   admin_token_passes: ['admin', 'super_admin'],
+  admin_minute_access: ['admin', 'super_admin'],
   admin_audit: ['manager', 'admin', 'super_admin'],
   admin_files: ['admin', 'super_admin'],
   admin_documents: MANAGEMENT_ROLES,

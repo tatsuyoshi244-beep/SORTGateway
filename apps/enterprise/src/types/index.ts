@@ -341,6 +341,44 @@ export interface TokenPass {
   plain_code?: string;
 }
 
+export interface MeetingMinute {
+  id: string;
+  company_id: string;
+  title: string;
+  meeting_date: string;
+  department_id: string;
+  department_name?: string;
+  participants: string;
+  agenda: string;
+  decisions: string;
+  action_items: string;
+  created_by: string;
+  created_by_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type MinuteAccessRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface MinuteAccessRequest {
+  id: string;
+  company_id: string;
+  minute_id: string;
+  minute_title: string;
+  requester_id: string;
+  requester_name: string;
+  requester_department_id: string | null;
+  requester_department_name?: string;
+  target_department_id: string;
+  target_department_name?: string;
+  reason: string;
+  status: MinuteAccessRequestStatus;
+  requested_at: string;
+  reviewed_by: string | null;
+  reviewed_by_name?: string | null;
+  reviewed_at: string | null;
+}
+
 export interface FileConnection {
   id: string;
   company_id: string;

@@ -92,6 +92,7 @@ export function TokenPassModal({
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="例: EXEC-2026-Q2-A1B2"
+            maxLength={2048}
             className="mt-1 font-mono"
           />
         </div>

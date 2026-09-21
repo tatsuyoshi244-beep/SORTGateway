@@ -7,6 +7,7 @@ import {
   MessageSquare,
   ScrollText,
   Users,
+  ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { filterHandoversForUser, filterKnowledgeForUser } from '@/lib/data-access';
@@ -15,6 +16,8 @@ import {
   MOCK_CONTACTS,
   MOCK_HANDOVERS,
   MOCK_KNOWLEDGE,
+  MOCK_MEETING_MINUTES,
+  MOCK_MINUTE_ACCESS_REQUESTS,
 } from '@/lib/mock-data';
 import { useRepositoryData } from '@/lib/hooks/use-repository-data';
 import { canAccessRoute } from '@/lib/permissions';
@@ -22,7 +25,10 @@ import {
   fetchContacts,
   fetchHandoverItems,
   fetchKnowledgeItems,
+  fetchMeetingMinutes,
+  fetchMinuteAccessRequests,
 } from '@/lib/repositories';
+import { visibleMeetingMinutes } from '@/lib/meeting-minutes/access';
 import { filterByCompany } from '@/lib/tenant/filter';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
@@ -50,6 +56,18 @@ export default function DashboardPage() {
     filterByCompany(MOCK_CONTACTS, effectiveCompanyId),
     { configuredInitial: [] }
   );
+  const { data: allMinutes, error: minutesError, reload: reloadMinutes } = useRepositoryData(
+    `meeting-minutes-${effectiveCompanyId}`,
+    () => fetchMeetingMinutes(effectiveCompanyId),
+    filterByCompany(MOCK_MEETING_MINUTES, effectiveCompanyId),
+    { persistMock: true, configuredInitial: [] }
+  );
+  const { data: minuteRequests, error: minuteRequestsError, reload: reloadMinuteRequests } = useRepositoryData(
+    `minute-access-requests-${effectiveCompanyId}`,
+    () => fetchMinuteAccessRequests(effectiveCompanyId),
+    filterByCompany(MOCK_MINUTE_ACCESS_REQUESTS, effectiveCompanyId),
+    { persistMock: true, configuredInitial: [] }
+  );
 
   if (!user) return null;
 
@@ -57,13 +75,15 @@ export default function DashboardPage() {
     publishedOnly: true,
   });
   const handovers = filterHandoversForUser(user, !!activeTokenPass, allHandovers);
+  const minutes = visibleMeetingMinutes(user, allMinutes, minuteRequests);
   const auditLogs = filterByCompany(MOCK_AUDIT_LOGS, effectiveCompanyId);
-  const repositoryError = knowledgeError || handoverError || contactsError;
+  const repositoryError = knowledgeError || handoverError || contactsError || minutesError || minuteRequestsError;
 
   const stats = [
     { label: '閲覧可能ナレッジ', value: knowledge.length, icon: BookOpen, href: '/knowledge' },
     { label: '引継ぎ情報', value: handovers.length, icon: ArrowRightLeft, href: '/handover' },
     { label: '担当者', value: contacts.length, icon: Users, href: '/contacts' },
+    { label: '閲覧可能な議事録', value: minutes.length, icon: ClipboardList, href: '/minutes' },
   ];
 
   return (
@@ -84,11 +104,11 @@ export default function DashboardPage() {
       {repositoryError && (
         <DataLoadError
           message={repositoryError}
-          onRetry={() => void Promise.all([reloadKnowledge(), reloadHandovers(), reloadContacts()])}
+          onRetry={() => void Promise.all([reloadKnowledge(), reloadHandovers(), reloadContacts(), reloadMinutes(), reloadMinuteRequests()])}
         />
       )}
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-3">
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => {
           const Icon = s.icon;
           return (
@@ -127,6 +147,11 @@ export default function DashboardPage() {
               <li>
                 <Link href="/contacts" className="text-navy-700 hover:underline">
                   担当者を探す
+                </Link>
+              </li>
+              <li>
+                <Link href="/minutes" className="text-navy-700 hover:underline">
+                  会議議事録を追加・確認する
                 </Link>
               </li>
             </ul>

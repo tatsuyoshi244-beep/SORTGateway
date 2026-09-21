@@ -4,6 +4,8 @@ import type {
   Department,
   FileConnection,
   HandoverItem,
+  MeetingMinute,
+  MinuteAccessRequest,
   ResponsiblePerson,
   Role,
   TokenPass,
@@ -126,6 +128,59 @@ export const MOCK_HANDOVERS: HandoverItem[] = [
     updated_at: '2026-04-10T12:00:00Z',
   },
 ];
+
+export const MOCK_MEETING_MINUTES: MeetingMinute[] = [
+  {
+    id: 'minute-1',
+    company_id: C,
+    title: '営業部 週次案件レビュー',
+    meeting_date: '2026-09-14',
+    department_id: 'dept-1',
+    department_name: '営業部',
+    participants: '山田 太郎、佐藤 花子',
+    agenda: '重点案件の進捗、失注要因、見積承認の停滞確認',
+    decisions: '見積承認を24時間以内に完了し、失注理由を案件台帳へ記録する。',
+    action_items: '山田: A社提案の再提出（9/18）\n佐藤: 承認フローの短縮案作成（9/20）',
+    created_by: 'user-2',
+    created_by_name: '佐藤 花子',
+    created_at: '2026-09-14T09:00:00Z',
+    updated_at: '2026-09-14T09:00:00Z',
+  },
+  {
+    id: 'minute-2',
+    company_id: C,
+    title: '開発部 リリース振り返り',
+    meeting_date: '2026-09-15',
+    department_id: 'dept-2',
+    department_name: '開発部',
+    participants: '開発リーダー、品質担当、運用担当',
+    agenda: 'リリース遅延と手戻りの原因分析',
+    decisions: 'レビュー待ち時間を計測し、定型確認を自動化する。',
+    action_items: '品質担当: チェック項目の統合\n運用担当: デプロイ計測の自動化',
+    created_by: 'user-3',
+    created_by_name: '鈴木 一郎',
+    created_at: '2026-09-15T08:30:00Z',
+    updated_at: '2026-09-15T08:30:00Z',
+  },
+  {
+    id: 'minute-3',
+    company_id: C,
+    title: '経営企画 部署横断効率化会議',
+    meeting_date: '2026-09-16',
+    department_id: 'dept-3',
+    department_name: '経営企画',
+    participants: '鈴木 一郎、各部門責任者',
+    agenda: '部署ごとの重複作業と支援可能業務の洗い出し',
+    decisions: '各部署が月1件、他部署へ移管・自動化できる作業を提案する。',
+    action_items: '各部門責任者: 改善候補を次回会議までに登録',
+    created_by: 'user-3',
+    created_by_name: '鈴木 一郎',
+    created_at: '2026-09-16T05:00:00Z',
+    updated_at: '2026-09-16T05:00:00Z',
+  },
+];
+
+export const MOCK_MINUTE_ACCESS_REQUESTS: MinuteAccessRequest[] = [];
 
 export const MOCK_CONTACTS: ResponsiblePerson[] = [
   {
