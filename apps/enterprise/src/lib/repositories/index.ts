@@ -1,7 +1,6 @@
 import { createBrowserClient } from '@/lib/supabase/client';
 import { generatePlainToken, hashToken } from '@/lib/token-pass/hash';
-import { SECURITY_POLICY } from '@/lib/security/config';
-import { isSupabaseConfigured } from '@/lib/env';
+import { DEMO_TOKEN_PASS_CODE, isSupabaseConfigured } from '@/lib/env';
 import { filterByCompany } from '@/lib/tenant/filter';
 import {
   MOCK_AUDIT_LOGS,
@@ -182,8 +181,12 @@ export async function createTokenPass(input: {
   label: string;
   expires_at: string;
   created_by?: string;
+  issued_to: string;
+  classification_scope: TokenPass['classification_scope'];
+  allowed_roles: TokenPass['allowed_roles'];
+  max_uses: number | null;
 }): Promise<TokenPass | null> {
-  const plainCode = generatePlainToken();
+  const plainCode = isSupabaseConfigured() ? generatePlainToken() : DEMO_TOKEN_PASS_CODE;
   const tokenHash = hashToken(plainCode);
 
   if (!isSupabaseConfigured()) {
@@ -191,14 +194,14 @@ export async function createTokenPass(input: {
       id: `tp-${Date.now()}`,
       company_id: input.company_id,
       label: input.label,
-      classification_scope: ['confidential'],
-      allowed_roles: ['employee', 'manager', 'executive', 'admin'],
+      classification_scope: input.classification_scope,
+      allowed_roles: input.allowed_roles,
       expires_at: input.expires_at,
-      issued_to: null,
+      issued_to: input.issued_to,
       created_by: input.created_by ?? 'system',
       is_active: true,
       used_count: 0,
-      max_uses: SECURITY_POLICY.token_pass.default_max_uses,
+      max_uses: input.max_uses,
       revoked_at: null,
       last_used_at: null,
       created_at: new Date().toISOString(),
@@ -215,12 +218,13 @@ export async function createTokenPass(input: {
       company_id: input.company_id,
       token_hash: tokenHash,
       label: input.label,
-      classification_scope: ['confidential'],
-      allowed_roles: ['employee', 'manager', 'executive', 'admin'],
+      classification_scope: input.classification_scope,
+      allowed_roles: input.allowed_roles,
       expires_at: input.expires_at,
+      issued_to: input.issued_to,
       created_by: input.created_by ?? null,
       is_active: true,
-      max_uses: SECURITY_POLICY.token_pass.default_max_uses,
+      max_uses: input.max_uses,
     })
     .select('*')
     .single();

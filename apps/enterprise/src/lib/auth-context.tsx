@@ -37,12 +37,14 @@ function postAudit(user: SessionUser, body: Record<string, unknown>) {
 
 const SESSION_KEY = 'sort-gateway-enterprise-session';
 const TOKEN_PASS_KEY = 'sort-gateway-active-token-pass';
+const TOKEN_PASS_GRANT_KEY = 'sort-gateway-token-pass-grant';
 
 interface AuthContextValue {
   user: SessionUser | null;
   isLoading: boolean;
   isSupabaseAuth: boolean;
   activeTokenPass: TokenPass | null;
+  activeTokenGrant: string | null;
   effectiveCompanyId: string;
   effectiveCompanyName: string;
   availableCompanies: Company[];
@@ -111,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [activeTokenPass, setActiveTokenPass] = useState<TokenPass | null>(null);
+  const [activeTokenGrant, setActiveTokenGrant] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [availableCompanies, setAvailableCompanies] = useState<Company[]>(MOCK_COMPANIES);
   const supabaseAuth = isSupabaseConfigured();
@@ -128,6 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setActiveTokenPass(loadTokenPassFromStorage());
+    setActiveTokenGrant(sessionStorage.getItem(TOKEN_PASS_GRANT_KEY));
 
     if (!supabaseAuth) {
       if (allowsDemoAuth()) {
@@ -300,9 +304,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       sessionStorage.removeItem(SESSION_KEY);
       sessionStorage.removeItem(TOKEN_PASS_KEY);
+      sessionStorage.removeItem(TOKEN_PASS_GRANT_KEY);
       sessionStorage.removeItem(ACTIVE_TENANT_KEY);
       setUser(null);
       setActiveTokenPass(null);
+      setActiveTokenGrant(null);
       router.push('/login');
     };
     void run();
@@ -347,13 +353,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         const data = await res.json();
 
-        if (!data.ok || !data.pass) {
+        if (!data.ok || !data.pass || !data.grant) {
           return { ok: false, error: data.error || 'トークンパスが無効です' };
         }
 
         const pass = data.pass as TokenPass;
         sessionStorage.setItem(TOKEN_PASS_KEY, JSON.stringify(pass));
+        sessionStorage.setItem(TOKEN_PASS_GRANT_KEY, String(data.grant));
         setActiveTokenPass(pass);
+        setActiveTokenGrant(String(data.grant));
         if (user && allowsDemoAuth()) {
           persistUser({ ...user, active_token_pass_id: pass.id });
         }
@@ -367,7 +375,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearTokenPass = useCallback(() => {
     sessionStorage.removeItem(TOKEN_PASS_KEY);
+    sessionStorage.removeItem(TOKEN_PASS_GRANT_KEY);
     setActiveTokenPass(null);
+    setActiveTokenGrant(null);
     if (user && allowsDemoAuth()) {
       persistUser({ ...user, active_token_pass_id: null });
     }
@@ -382,6 +392,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       isSupabaseAuth: supabaseAuth,
       activeTokenPass,
+      activeTokenGrant,
       effectiveCompanyId,
       effectiveCompanyName,
       availableCompanies,
@@ -397,6 +408,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       supabaseAuth,
       activeTokenPass,
+      activeTokenGrant,
       effectiveCompanyId,
       effectiveCompanyName,
       availableCompanies,

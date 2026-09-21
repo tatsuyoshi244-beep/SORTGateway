@@ -32,10 +32,19 @@ describe('permissions', () => {
     ).toBe(false);
   });
 
-  it('allows manager confidential in same context', () => {
+  it('requires a token even for managers viewing confidential information', () => {
     expect(
       canViewClassification('manager', 'confidential', false, 'dept-1', 'dept-1')
+    ).toBe(false);
+    expect(
+      canViewClassification('manager', 'confidential', true, 'dept-1', 'dept-1')
     ).toBe(true);
+  });
+
+  it('requires both an executive role and token for executive-only information', () => {
+    expect(canViewClassification('executive', 'executive_only', false, null, null)).toBe(false);
+    expect(canViewClassification('executive', 'executive_only', true, null, null)).toBe(true);
+    expect(canViewClassification('employee', 'executive_only', true, null, null)).toBe(false);
   });
 
   const adminOnly: UserRole[] = ['admin', 'super_admin'];

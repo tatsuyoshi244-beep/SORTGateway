@@ -37,7 +37,15 @@ function sanitizePass(pass: TokenPass): TokenPass {
   return safe;
 }
 
-function validatePass(pass: TokenPass, userRole?: UserRole): TokenPassVerifyResult {
+function isAccountBinding(value: string): boolean {
+  return value.startsWith('user-') || /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(value);
+}
+
+function validatePass(
+  pass: TokenPass,
+  userRole?: UserRole,
+  userId?: string
+): TokenPassVerifyResult {
   if (pass.revoked_at) {
     return { ok: false, error: 'トークンパスは失効しています' };
   }
@@ -53,6 +61,14 @@ function validatePass(pass: TokenPass, userRole?: UserRole): TokenPassVerifyResu
   if (userRole && pass.allowed_roles.length > 0 && !pass.allowed_roles.includes(userRole)) {
     return { ok: false, error: 'このロールではトークンパスを使用できません' };
   }
+  if (
+    pass.issued_to &&
+    isAccountBinding(pass.issued_to) &&
+    userId &&
+    pass.issued_to !== userId
+  ) {
+    return { ok: false, error: 'このトークンパスは別の社員に発行されています' };
+  }
   return { ok: true, pass: sanitizePass(pass) };
 }
 
@@ -65,16 +81,16 @@ function findMockPassByHash(plain: string): MockTokenRecord | undefined {
   return (MOCK_TOKEN_PASSES as MockTokenRecord[]).find((p) => p.token_hash === hash);
 }
 
-function verifyMock(plain: string, userRole?: UserRole): TokenPassVerifyResult {
+function verifyMock(plain: string, userRole?: UserRole, userId?: string): TokenPassVerifyResult {
   const pass = findMockPassByHash(plain);
   if (!pass) {
     if (plain.trim().toUpperCase() === DEMO_TOKEN_PASS_CODE) {
       const demo = findMockPassByHash(DEMO_TOKEN_PASS_CODE);
-      if (demo) return validatePass(demo, userRole);
+      if (demo) return validatePass(demo, userRole, userId);
     }
     return { ok: false, error: 'トークンパスが無効です' };
   }
-  return validatePass(pass, userRole);
+  return validatePass(pass, userRole, userId);
 }
 
 async function incrementUsage(passId: string, currentCount: number) {
@@ -91,14 +107,15 @@ async function incrementUsage(passId: string, currentCount: number) {
 export async function verifyTokenPass(
   plain: string,
   companyId?: string,
-  userRole?: UserRole
+  userRole?: UserRole,
+  userId?: string
 ): Promise<TokenPassVerifyResult> {
   if (!plain?.trim()) {
     return { ok: false, error: 'トークンコードを入力してください' };
   }
 
   if (!isSupabaseConfigured()) {
-    const result = verifyMock(plain, userRole);
+    const result = verifyMock(plain, userRole, userId);
     if (result.ok && result.pass && companyId && result.pass.company_id !== companyId) {
       return { ok: false, error: '他社のトークンパスです' };
     }
@@ -107,7 +124,7 @@ export async function verifyTokenPass(
 
   const supabase = createServerClient();
   if (!supabase) {
-    return verifyMock(plain, userRole);
+    return verifyMock(plain, userRole, userId);
   }
 
   const tokenHash = hashToken(plain);
@@ -133,7 +150,7 @@ export async function verifyTokenPass(
     if (!tokensMatch(plain, String(legacyRow.token_hash ?? '')) && legacyRow.code) {
       // code 列のみの旧データ
     }
-    const result = validatePass(mapTokenRow(legacyRow), userRole);
+    const result = validatePass(mapTokenRow(legacyRow), userRole, userId);
     if (result.ok && result.pass) {
       await incrementUsage(result.pass.id, result.pass.used_count);
       result.pass = { ...result.pass, used_count: result.pass.used_count + 1 };
@@ -141,7 +158,7 @@ export async function verifyTokenPass(
     return result;
   }
 
-  const result = validatePass(mapTokenRow(data as Record<string, unknown>), userRole);
+  const result = validatePass(mapTokenRow(data as Record<string, unknown>), userRole, userId);
   if (result.ok && result.pass) {
     await incrementUsage(result.pass.id, result.pass.used_count);
     result.pass = { ...result.pass, used_count: result.pass.used_count + 1 };

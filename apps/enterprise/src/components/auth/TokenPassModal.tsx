@@ -5,6 +5,8 @@ import { X } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/Button';
 import { Input, Label } from '@/components/ui/Input';
+import { allowsDemoAuth, DEMO_TOKEN_PASS_CODE } from '@/lib/env';
+import { CLASSIFICATION_LABELS } from '@/lib/permissions';
 
 export function TokenPassModal({
   open,
@@ -13,7 +15,7 @@ export function TokenPassModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const { applyTokenPass, clearTokenPass, activeTokenPass } = useAuth();
+  const { user, applyTokenPass, clearTokenPass, activeTokenPass } = useAuth();
   const [code, setCode] = useState('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
@@ -48,11 +50,39 @@ export function TokenPassModal({
         </button>
         <h2 className="text-lg font-bold text-slate-900">トークンパス入力</h2>
         <p className="mt-2 text-sm text-slate-500">
-          機密・役員限定情報へアクセスするには、発行されたトークンパスを入力してください。
+          企業管理者から自分のアカウントへ発行されたパスを、利用理由とともに適用します。
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          企業: {user?.company_name ?? '—'} · 利用者: {user?.full_name ?? '—'}
         </p>
         {activeTokenPass && (
           <div className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            適用中: {activeTokenPass.label}（期限: {new Date(activeTokenPass.expires_at).toLocaleDateString('ja-JP')}）
+            <p>適用中: {activeTokenPass.label}</p>
+            <p className="mt-1 text-xs">
+              対象: {activeTokenPass.classification_scope.map((scope) => CLASSIFICATION_LABELS[scope]).join('、')}
+              {' · '}期限: {new Date(activeTokenPass.expires_at).toLocaleDateString('ja-JP')}
+            </p>
+          </div>
+        )}
+        {allowsDemoAuth() && !activeTokenPass && (
+          <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <p className="text-sm font-medium text-blue-900">公開デモ用</p>
+            <p className="mt-1 text-xs text-blue-800">
+              「鈴木 一郎（EXE-001）」に発行済みのパスを入力できます。
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="mt-2"
+              onClick={() => {
+                setCode(DEMO_TOKEN_PASS_CODE);
+                setReason('役員向け機密ナレッジのデモ確認');
+                setError('');
+              }}
+            >
+              デモパスを入力
+            </Button>
           </div>
         )}
         <div className="mt-4">

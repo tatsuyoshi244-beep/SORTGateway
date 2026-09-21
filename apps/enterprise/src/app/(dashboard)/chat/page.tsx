@@ -14,7 +14,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { AssistantMessage } from '@/components/chat/AssistantMessage';
 
 export default function ChatPage() {
-  const { user, activeTokenPass } = useAuth();
+  const { user, activeTokenPass, activeTokenGrant } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -63,7 +63,7 @@ export default function ChatPage() {
         method: 'POST',
         body: JSON.stringify({
           message: text,
-          hasActiveTokenPass: !!activeTokenPass,
+          tokenPassGrant: activeTokenPass ? activeTokenGrant : null,
         }),
       });
 

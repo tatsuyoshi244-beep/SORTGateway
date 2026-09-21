@@ -9,7 +9,7 @@ import { TokenPassModal } from '@/components/auth/TokenPassModal';
 import { Button } from '@/components/ui/Button';
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, effectiveCompanyName } = useAuth();
+  const { user, isLoading, effectiveCompanyName, activeTokenPass } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [tokenModalOpen, setTokenModalOpen] = useState(false);
 
@@ -63,7 +63,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           <TenantSwitcher />
           <Button variant="ghost" size="sm" className="shrink-0 whitespace-nowrap" onClick={() => setTokenModalOpen(true)}>
             <KeyRound className="h-4 w-4" />
-            トークンパス入力
+            {activeTokenPass ? 'パス適用中' : 'トークンパス'}
           </Button>
         </header>
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">{children}</main>

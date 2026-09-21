@@ -4,6 +4,7 @@ import { recordTokenPassVerify } from '@/lib/audit';
 import { authenticateRequest } from '@/lib/api/auth-guard';
 import { validateTokenVerifyBody } from '@/lib/api/validate';
 import { getClientIp, getUserAgent } from '@/lib/api/request-meta';
+import { issueTokenPassGrant } from '@/lib/token-pass/grant';
 
 export const runtime = 'nodejs';
 
@@ -21,7 +22,8 @@ export async function POST(req: NextRequest) {
     const result = await verifyTokenPass(
       validated.code!,
       auth.companyId,
-      auth.user.role
+      auth.user.role,
+      auth.user.id
     );
 
     await recordTokenPassVerify(
@@ -39,7 +41,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: result.error }, { status: 401 });
     }
 
-    return NextResponse.json({ ok: true, pass: result.pass });
+    const grant = result.pass
+      ? issueTokenPassGrant(result.pass, auth.user.id, auth.companyId)
+      : null;
+    if (!grant) {
+      return NextResponse.json(
+        { ok: false, error: 'トークンパスの利用セッションを開始できません' },
+        { status: 503 }
+      );
+    }
+
+    return NextResponse.json({ ok: true, pass: result.pass, grant });
   } catch (err) {
     const msg = err instanceof Error ? err.message : '検証に失敗しました';
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });

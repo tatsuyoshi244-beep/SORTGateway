@@ -123,9 +123,9 @@ export function canViewClassification(
       if (elevated) return true;
       return !!userDepartmentId && userDepartmentId === itemDepartmentId;
     case 'confidential':
-      return elevated || role === 'manager' || hasActiveTokenPass;
+      return (elevated || role === 'manager' || role === 'employee') && hasActiveTokenPass;
     case 'executive_only':
-      return role === 'executive' || role === 'admin' || isSuperAdmin(role);
+      return (role === 'executive' || role === 'admin' || isSuperAdmin(role)) && hasActiveTokenPass;
     default:
       return false;
   }

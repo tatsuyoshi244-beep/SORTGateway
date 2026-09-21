@@ -10,12 +10,13 @@ import { getClientIp, getUserAgent } from '@/lib/api/request-meta';
 import { apiError, apiErrorFromException } from '@/lib/api/errors';
 import { measureAsync } from '@/lib/observability/timing';
 import { isSupabaseConfigured } from '@/lib/env';
+import { verifyTokenPassGrant } from '@/lib/token-pass/grant';
 
 export const runtime = 'nodejs';
 
 interface ChatRequestBody {
   message: string;
-  hasActiveTokenPass?: boolean;
+  tokenPassGrant?: string;
 }
 
 export async function POST(req: NextRequest) {
@@ -29,8 +30,10 @@ export async function POST(req: NextRequest) {
       return apiError('VALIDATION_ERROR', validated.message);
     }
 
-    const hasActiveTokenPass = Boolean(
-      (body as ChatRequestBody & { hasActiveTokenPass?: boolean }).hasActiveTokenPass
+    const hasActiveTokenPass = verifyTokenPassGrant(
+      (body as ChatRequestBody).tokenPassGrant,
+      auth.user.id,
+      auth.companyId
     );
 
     const rag = await measureAsync('chat.rag', () =>
