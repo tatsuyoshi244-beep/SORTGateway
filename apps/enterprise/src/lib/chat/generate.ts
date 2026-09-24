@@ -2,10 +2,19 @@ import type { ChatAssistantPayload } from '@/types';
 import type { RagSearchResult } from '@/lib/rag/search';
 import { buildDocumentContext } from '@/lib/rag/search';
 import { toEnrichedKnowledgeSources, attachQualityToPayload } from '@/lib/knowledge/quality';
-import { isOpenAIConfigured } from '@/lib/env';
+import { allowsExternalInternalContext, isOpenAIConfigured } from '@/lib/env';
+import {
+  containsSensitiveOutboundData,
+  decideChatAnswerMode,
+  filterGeneralHistory,
+  type ChatHistoryTurn,
+} from '@/lib/chat/policy';
 
 const NO_KNOWLEDGE_WARNING =
   '登録された社内ナレッジ・ドキュメントに該当する情報が見つかりませんでした。推測による回答は行っていません。担当者検索またはドキュメント管理をご確認ください。';
+
+const GENERAL_KNOWLEDGE_WARNING =
+  '一般知識による回答です。自社の規程・正式手順・法務判断としては使用せず、必要に応じて社内責任者へ確認してください。';
 
 const EMPTY_QUALITY = {
   confidence_score: 0,
@@ -32,6 +41,7 @@ function buildMockPayload(question: string, rag: RagSearchResult): ChatAssistant
         document_references: [],
         warnings: [NO_KNOWLEDGE_WARNING],
         has_knowledge: false,
+        answer_mode: 'restricted',
       },
       rag
     );
@@ -63,6 +73,7 @@ function buildMockPayload(question: string, rag: RagSearchResult): ChatAssistant
       document_references: documentReferences,
       warnings: [],
       has_knowledge: true,
+      answer_mode: 'internal',
     },
     rag
   );
@@ -153,16 +164,127 @@ async function buildOpenAIPayload(
       document_references: rag.documentReferences,
       warnings,
       has_knowledge: hasKnowledge,
+      answer_mode: hasKnowledge ? 'internal' : 'restricted',
     },
     rag
   );
 }
 
+function buildRestrictedPayload(question: string): ChatAssistantPayload {
+  const containsPotentialSecret = containsSensitiveOutboundData(question);
+
+  return {
+    answer: containsPotentialSecret
+      ? '機密情報・認証情報・個人情報の可能性がある内容を検出したため、外部AIへ送信せず回答を停止しました。必要な情報を伏せて質問し直してください。'
+      : '社内固有の質問として確認しましたが、閲覧可能な社内資料に根拠が見つかりませんでした。一般論で会社のルールを推測せず、担当部署または管理者へ確認してください。',
+    rationale: '社内情報の誤回答と外部への不要なデータ送信を防ぐガバナンス判定です。',
+    sources: [],
+    references: [],
+    document_references: [],
+    warnings: [
+      containsPotentialSecret
+        ? '入力内容は生成AI APIへ送信されていません。'
+        : NO_KNOWLEDGE_WARNING,
+    ],
+    has_knowledge: false,
+    answer_mode: 'restricted',
+    quality: EMPTY_QUALITY,
+  };
+}
+
+function buildGeneralUnavailablePayload(): ChatAssistantPayload {
+  return {
+    answer: '一般的な質問への回答機能は準備されていますが、この環境では生成AI APIが未接続のため回答を生成できません。社内ナレッジ検索は引き続き利用できます。',
+    rationale: '社内資料を使用しない一般回答として処理しましたが、生成AI接続が設定されていません。',
+    sources: [],
+    references: [],
+    document_references: [],
+    warnings: [GENERAL_KNOWLEDGE_WARNING],
+    has_knowledge: false,
+    answer_mode: 'general',
+    quality: EMPTY_QUALITY,
+  };
+}
+
+async function buildGeneralOpenAIPayload(
+  question: string,
+  history: ChatHistoryTurn[]
+): Promise<ChatAssistantPayload> {
+  const apiKey = process.env.OPENAI_API_KEY!;
+  const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  const safeHistory = filterGeneralHistory(history);
+  const system = `あなたは企業内で利用される一般相談AIです。
+社内ナレッジや会社固有の規程を知っていると装わず、一般知識として自然な日本語で会話してください。
+セキュリティ・ガバナンス・法令順守・プライバシーを優先し、機密情報や個人情報の入力を求めないでください。
+医療・法律・金融など高リスクな質問では、一般情報と専門家への確認が必要な範囲を明確に分けてください。
+必ず JSON のみを返してください。形式:
+{
+  "answer": "ユーザーへの回答（日本語）",
+  "rationale": "一般知識として回答した根拠と限界",
+  "warnings": ["必要な注意事項。不要なら空配列"]
+}`;
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: system },
+        ...safeHistory.map((turn) => ({ role: turn.role, content: turn.content })),
+        { role: 'user', content: question },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`OpenAI API error: ${res.status}`);
+  }
+
+  const data = await res.json();
+  const raw = data.choices?.[0]?.message?.content;
+  let parsed: { answer?: string; rationale?: string; warnings?: string[] } = {};
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = { answer: raw, rationale: '一般知識として生成', warnings: [] };
+  }
+
+  return {
+    answer: parsed.answer ?? '回答を生成できませんでした。',
+    rationale: parsed.rationale ?? '社内資料を使用せず、一般知識として回答しました。',
+    sources: [],
+    references: [],
+    document_references: [],
+    warnings: [GENERAL_KNOWLEDGE_WARNING, ...(parsed.warnings ?? [])],
+    has_knowledge: false,
+    answer_mode: 'general',
+    quality: EMPTY_QUALITY,
+  };
+}
+
 export async function generateChatResponse(
   question: string,
-  rag: RagSearchResult
+  rag: RagSearchResult,
+  history: ChatHistoryTurn[] = []
 ): Promise<ChatAssistantPayload> {
-  if (isOpenAIConfigured()) {
+  const mode = decideChatAnswerMode(question, rag);
+  if (mode === 'restricted') return buildRestrictedPayload(question);
+  if (mode === 'general') {
+    if (!isOpenAIConfigured()) return buildGeneralUnavailablePayload();
+    try {
+      return await buildGeneralOpenAIPayload(question, history);
+    } catch {
+      return buildGeneralUnavailablePayload();
+    }
+  }
+
+  if (isOpenAIConfigured() && allowsExternalInternalContext()) {
     try {
       return await buildOpenAIPayload(question, rag);
     } catch {

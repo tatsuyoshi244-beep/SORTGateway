@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from '@/lib/env';
+import { containsSensitiveOutboundData } from '@/lib/chat/policy';
 
 export type AuditAction =
   | 'auth.login'
@@ -164,9 +165,13 @@ export async function recordChatSend(
   companyId: string,
   question: string,
   hasKnowledge: boolean,
+  answerMode: import('@/types').ChatAnswerMode,
   ip?: string | null,
   userAgent?: string | null
 ) {
+  const safeQuestion = containsSensitiveOutboundData(question)
+    ? '[機密情報の可能性を検出したため記録を省略]'
+    : question.slice(0, 120);
   await recordAuditLog({
     userId,
     userName,
@@ -174,7 +179,7 @@ export async function recordChatSend(
     action: 'chat.send',
     resourceType: 'chat',
     result: 'success',
-    details: `質問送信（ナレッジ参照: ${hasKnowledge ? 'あり' : 'なし'}）: ${question.slice(0, 120)}`,
+    details: `質問送信（回答区分: ${answerMode}、ナレッジ参照: ${hasKnowledge ? 'あり' : 'なし'}）: ${safeQuestion}`,
     ipAddress: ip,
     userAgent,
   });

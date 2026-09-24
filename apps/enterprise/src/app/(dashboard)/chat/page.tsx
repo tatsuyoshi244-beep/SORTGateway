@@ -64,6 +64,11 @@ export default function ChatPage() {
         body: JSON.stringify({
           message: text,
           tokenPassGrant: activeTokenPass ? activeTokenGrant : null,
+          history: messages.slice(-8).map((message) => ({
+            role: message.role,
+            content: message.content,
+            answer_mode: message.payload?.answer_mode,
+          })),
         }),
       });
 
@@ -96,7 +101,7 @@ export default function ChatPage() {
     <div className="flex h-[calc(100vh-8rem)] flex-col">
       <PageHeader
         title="AIチャット"
-        description="社内ナレッジを参照しながら質問できます（回答・根拠・参照元を分離表示）"
+        description="社内情報は根拠付きで、一般質問はセキュリティ・ガバナンスを踏まえて回答します"
       />
 
       {error && (
@@ -111,7 +116,7 @@ export default function ChatPage() {
             {messages.length === 0 ? (
               <EmptyState
                 title="質問を入力してください"
-                description="営業規定、引継ぎ、担当者、FAQ などについてお尋ねください"
+                description="社内規程・引継ぎの確認から、一般的な業務相談まで質問できます"
               />
             ) : (
               <div className="mx-auto max-w-3xl space-y-8">
@@ -159,6 +164,9 @@ export default function ChatPage() {
           </div>
 
           <div className="border-t border-slate-100 p-4">
+            <p className="mx-auto mb-2 max-w-3xl text-xs leading-relaxed text-slate-500">
+              社内情報と一般質問を自動判定します。パスワード、APIキー、個人情報などの機密情報は入力しないでください。
+            </p>
             <div className="mx-auto flex max-w-3xl gap-2">
               <Textarea
                 value={input}

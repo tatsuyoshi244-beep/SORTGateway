@@ -28,6 +28,11 @@ export function isOpenAIConfigured(): boolean {
   return !!process.env.OPENAI_API_KEY;
 }
 
+/** 外部AIへ社内ナレッジ本文を送信する明示的な企業ポリシー */
+export function allowsExternalInternalContext(): boolean {
+  return process.env.AI_ALLOW_INTERNAL_CONTEXT === 'true';
+}
+
 export const DEMO_TOKEN_PASS_CODE = 'EXEC-2026-Q2-A1B2';
 
 /** ローカルファイル保存（Supabase Storage 未使用時） */

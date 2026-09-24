@@ -6,8 +6,11 @@ import {
   BookOpen,
   FileStack,
   Gauge,
+  Globe2,
   Lightbulb,
+  LockKeyhole,
   MessageSquare,
+  ShieldCheck,
   User,
 } from 'lucide-react';
 import type { ChatAssistantPayload } from '@/types';
@@ -25,13 +28,22 @@ export function AssistantMessage({
   onFeedback?: (rating: 'positive' | 'negative') => void;
 }) {
   const q = payload.quality;
+  const mode = payload.answer_mode ?? (payload.has_knowledge ? 'internal' : 'restricted');
+  const modeLabel = mode === 'internal' ? '社内情報' : mode === 'general' ? '一般知識' : '回答停止';
+  const ModeIcon = mode === 'internal' ? ShieldCheck : mode === 'general' ? Globe2 : LockKeyhole;
 
   return (
     <div className="w-full max-w-3xl space-y-3">
       <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-navy-700">
-          <MessageSquare className="h-3.5 w-3.5" />
-          回答
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-navy-700">
+            <MessageSquare className="h-3.5 w-3.5" />
+            回答
+          </div>
+          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+            <ModeIcon className="h-3.5 w-3.5" />
+            {modeLabel}
+          </span>
         </div>
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">
           {payload.answer}
@@ -123,7 +135,7 @@ export function AssistantMessage({
         </section>
       )}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
+      {mode === 'internal' && <section className="rounded-xl border border-slate-200 bg-white p-4">
         <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
           <BookOpen className="h-3.5 w-3.5" />
           参照ナレッジ
@@ -155,20 +167,15 @@ export function AssistantMessage({
             ))}
           </ul>
         )}
-      </section>
+      </section>}
 
-      {(payload.warnings.length > 0 || !payload.has_knowledge) && (
+      {payload.warnings.length > 0 && (
         <section className="rounded-xl border border-amber-200 bg-amber-50 p-4">
           <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-800">
             <AlertTriangle className="h-3.5 w-3.5" />
             注意事項
           </div>
           <ul className="list-inside list-disc space-y-1 text-sm text-amber-900">
-            {!payload.has_knowledge && (
-              <li>
-                社内ナレッジ・ドキュメントに該当情報がありません。以下は推測ではなく「情報なし」に基づく応答です。
-              </li>
-            )}
             {payload.warnings.map((w, i) => (
               <li key={i}>{w}</li>
             ))}

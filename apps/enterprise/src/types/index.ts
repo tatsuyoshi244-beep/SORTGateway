@@ -233,6 +233,8 @@ export interface DocumentChunkWithMeta extends DocumentChunk {
 }
 
 /** /api/chat レスポンス構造 */
+export type ChatAnswerMode = 'internal' | 'general' | 'restricted';
+
 export interface ChatAssistantPayload {
   answer: string;
   rationale: string;
@@ -241,6 +243,7 @@ export interface ChatAssistantPayload {
   document_references: DocumentReference[];
   warnings: string[];
   has_knowledge: boolean;
+  answer_mode: ChatAnswerMode;
   quality: AnswerQualityInfo;
 }
 

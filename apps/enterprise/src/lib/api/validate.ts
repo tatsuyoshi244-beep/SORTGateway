@@ -1,4 +1,11 @@
-import type { CompanyPlan, CompanyStatus, InformationClassification, UserRole } from '@/types';
+import type {
+  ChatAnswerMode,
+  CompanyPlan,
+  CompanyStatus,
+  InformationClassification,
+  UserRole,
+} from '@/types';
+import type { ChatHistoryTurn } from '@/lib/chat/policy';
 
 export interface ValidationResult {
   ok: true;
@@ -54,12 +61,44 @@ export function requireEnum<T extends string>(
   return { ok: true, value: value as T };
 }
 
-export function validateChatBody(body: unknown): ValidateResult & { message?: string } {
+export function validateChatBody(body: unknown): ValidateResult & {
+  message?: string;
+  history?: ChatHistoryTurn[];
+} {
   if (!body || typeof body !== 'object') return fail('リクエストボディが不正です');
   const b = body as Record<string, unknown>;
   const msg = requireString(b.message, 'message', { min: 1, max: 4000 });
   if (!msg.ok) return msg;
-  return { ok: true, message: msg.value };
+
+  if (b.history != null && !Array.isArray(b.history)) {
+    return fail('history が不正です');
+  }
+
+  const history: ChatHistoryTurn[] = [];
+  for (const item of (b.history as unknown[] | undefined) ?? []) {
+    if (!item || typeof item !== 'object') return fail('history が不正です');
+    const turn = item as Record<string, unknown>;
+    if (turn.role !== 'user' && turn.role !== 'assistant') return fail('history role が不正です');
+    const content = requireString(turn.content, 'history content', { min: 1, max: 1500 });
+    if (!content.ok) return content;
+    const rawAnswerMode = turn.answer_mode;
+    if (
+      rawAnswerMode != null &&
+      rawAnswerMode !== 'internal' &&
+      rawAnswerMode !== 'general' &&
+      rawAnswerMode !== 'restricted'
+    ) {
+      return fail('history answer_mode が不正です');
+    }
+    const answerMode = rawAnswerMode == null ? undefined : (rawAnswerMode as ChatAnswerMode);
+    history.push({ role: turn.role, content: content.value!, answer_mode: answerMode });
+  }
+  if (history.length > 8) return fail('history は8件以内です');
+  if (history.reduce((total, turn) => total + turn.content.length, 0) > 8000) {
+    return fail('history が長すぎます');
+  }
+
+  return { ok: true, message: msg.value, history };
 }
 
 export function validateTokenVerifyBody(body: unknown): ValidateResult & { code?: string; reason?: string } {

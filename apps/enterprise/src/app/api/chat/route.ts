@@ -11,12 +11,14 @@ import { apiError, apiErrorFromException } from '@/lib/api/errors';
 import { measureAsync } from '@/lib/observability/timing';
 import { isSupabaseConfigured } from '@/lib/env';
 import { verifyTokenPassGrant } from '@/lib/token-pass/grant';
+import type { ChatHistoryTurn } from '@/lib/chat/policy';
 
 export const runtime = 'nodejs';
 
 interface ChatRequestBody {
   message: string;
   tokenPassGrant?: string;
+  history?: ChatHistoryTurn[];
 }
 
 export async function POST(req: NextRequest) {
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
       searchRagCandidates(auth.user, validated.message!, hasActiveTokenPass)
     );
     const payload = await measureAsync('chat.generate', () =>
-      generateChatResponse(validated.message!, rag)
+      generateChatResponse(validated.message!, rag, validated.history ?? [])
     );
 
     let chatLog: { id: string };
@@ -63,6 +65,7 @@ export async function POST(req: NextRequest) {
       auth.companyId,
       validated.message!,
       payload.has_knowledge,
+      payload.answer_mode,
       getClientIp(req),
       getUserAgent(req)
     );

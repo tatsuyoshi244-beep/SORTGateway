@@ -1,9 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import {
   validateCompanyCreateBody,
+  validateChatBody,
   validateTokenVerifyBody,
   validateUserCreateBody,
 } from '@/lib/api/validate';
+
+describe('chat validation', () => {
+  it('accepts a bounded conversation history', () => {
+    const result = validateChatBody({
+      message: '続けて教えて',
+      history: [
+        { role: 'user', content: '情報セキュリティとは何ですか' },
+        { role: 'assistant', content: '情報を守るための仕組みです', answer_mode: 'general' },
+      ],
+    });
+
+    expect(result).toMatchObject({ ok: true, message: '続けて教えて' });
+    if (result.ok) expect(result.history).toHaveLength(2);
+  });
+
+  it('rejects unbounded conversation history', () => {
+    const result = validateChatBody({
+      message: '続けて',
+      history: Array.from({ length: 9 }, () => ({ role: 'user', content: '質問' })),
+    });
+
+    expect(result.ok).toBe(false);
+  });
+});
 
 describe('token pass validation', () => {
   it('requires an access reason', () => {

@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
+import { containsSensitiveOutboundData } from '@/lib/chat/policy';
 import type { ChatAssistantPayload, ChatLog, FeedbackResult, SessionUser } from '@/types';
 import { MOCK_CHAT_LOGS } from '@/lib/analytics/mock-chat-logs';
 import { detectUnresolvedFromChat } from '@/lib/analytics/compute';
@@ -107,9 +108,14 @@ export async function appendChatLog(input: {
   payload: ChatAssistantPayload;
 }): Promise<ChatLog> {
   const logs = await readStore();
+  const safeQuestion = containsSensitiveOutboundData(input.question)
+    ? '[機密情報の可能性を検出したため記録を省略]'
+    : input.question;
   const noKnowledgeReason =
-    input.payload.warnings.find((w) => w.includes('ナレッジ') || w.includes('古い')) ??
-    (!input.payload.has_knowledge ? '該当する社内ナレッジが見つかりませんでした' : null);
+    input.payload.answer_mode === 'general'
+      ? null
+      : input.payload.warnings.find((w) => w.includes('ナレッジ') || w.includes('古い')) ??
+        (!input.payload.has_knowledge ? '該当する社内ナレッジが見つかりませんでした' : null);
 
   const log: ChatLog = {
     id: `cl-${randomUUID().slice(0, 8)}`,
@@ -118,17 +124,20 @@ export async function appendChatLog(input: {
     user_name: input.user.full_name,
     department: input.user.department_name ?? null,
     department_id: input.user.department_id,
-    question: input.question.slice(0, 500),
+    question: safeQuestion.slice(0, 500),
     answer_summary: input.payload.answer.slice(0, 500),
     has_knowledge: input.payload.has_knowledge,
     confidence_score: input.payload.quality.confidence_score,
     source_count: input.payload.quality.source_count,
     feedback_result: null,
-    unresolved: detectUnresolvedFromChat(
-      input.payload.has_knowledge,
-      input.payload.quality.confidence_score,
-      noKnowledgeReason
-    ),
+    unresolved:
+      input.payload.answer_mode === 'general'
+        ? false
+        : detectUnresolvedFromChat(
+            input.payload.has_knowledge,
+            input.payload.quality.confidence_score,
+            noKnowledgeReason
+          ),
     resolved_by_admin: false,
     no_knowledge_reason: noKnowledgeReason,
     status: 'open',
