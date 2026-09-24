@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchRagCandidates } from '@/lib/rag/search';
-import { generateChatResponse } from '@/lib/chat/generate';
+import { buildAIUsageBlockedPayload, generateChatResponse } from '@/lib/chat/generate';
 import { recordChatSend } from '@/lib/audit';
 import { incrementChatUsage } from '@/lib/knowledge/lifecycle-store';
 import { appendChatLog } from '@/lib/analytics/chat-log-store';
@@ -9,9 +9,19 @@ import { validateChatBody } from '@/lib/api/validate';
 import { getClientIp, getUserAgent } from '@/lib/api/request-meta';
 import { apiError, apiErrorFromException } from '@/lib/api/errors';
 import { measureAsync } from '@/lib/observability/timing';
-import { isSupabaseConfigured } from '@/lib/env';
+import { isOpenAIConfigured, isSupabaseConfigured } from '@/lib/env';
 import { verifyTokenPassGrant } from '@/lib/token-pass/grant';
-import type { ChatHistoryTurn } from '@/lib/chat/policy';
+import { decideChatAnswerMode, type ChatHistoryTurn } from '@/lib/chat/policy';
+import {
+  finalizeAIUsage,
+  getAIUsagePolicy,
+  getAIUsageSummary,
+  isAIUsagePersistenceReady,
+  reserveGeneralAIUsage,
+} from '@/lib/ai/policy-store';
+import { evaluateAIUsagePolicy } from '@/lib/ai/policy';
+import { applyAIOutputPolicy } from '@/lib/ai/output-filter';
+import type { ChatAssistantPayload } from '@/types';
 
 export const runtime = 'nodejs';
 
@@ -41,9 +51,44 @@ export async function POST(req: NextRequest) {
     const rag = await measureAsync('chat.rag', () =>
       searchRagCandidates(auth.user, validated.message!, hasActiveTokenPass)
     );
-    const payload = await measureAsync('chat.generate', () =>
-      generateChatResponse(validated.message!, rag, validated.history ?? [])
-    );
+    const policy = await getAIUsagePolicy(auth.companyId);
+    const answerMode = decideChatAnswerMode(validated.message!, rag);
+    let reservationId: string | undefined;
+    let payload: ChatAssistantPayload | undefined;
+
+    if (answerMode === 'general') {
+      const usage = await getAIUsageSummary(auth.companyId, auth.user.id);
+      const decision = evaluateAIUsagePolicy(
+        policy,
+        usage,
+        validated.message!.length,
+        isAIUsagePersistenceReady()
+      );
+      if (!decision.allowed) {
+        payload = buildAIUsageBlockedPayload(decision.reason);
+      } else if (isOpenAIConfigured()) {
+        const reservation = await reserveGeneralAIUsage({
+          companyId: auth.companyId,
+          userId: auth.user.id,
+          inputChars: validated.message!.length,
+        });
+        if (!reservation.allowed) {
+          payload = buildAIUsageBlockedPayload(reservation.reason ?? 'persistence_required');
+        } else {
+          reservationId = reservation.eventId;
+        }
+      }
+    }
+
+    if (!payload) {
+      payload = await measureAsync('chat.generate', () =>
+        generateChatResponse(validated.message!, rag, validated.history ?? [], {
+          allowExternalInternalContext: policy.allow_internal_context,
+        })
+      );
+    }
+    payload = applyAIOutputPolicy(payload, policy);
+    await finalizeAIUsage(reservationId, payload.answer.length).catch(() => undefined);
 
     let chatLog: { id: string };
     try {

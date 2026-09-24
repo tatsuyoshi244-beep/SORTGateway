@@ -6,6 +6,7 @@ import { RouteGuard } from '@/components/auth/RouteGuard';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card, CardBody } from '@/components/ui/Card';
 import { IntegrationOpsSummary } from '@/components/integrations/IntegrationOpsSummary';
+import { AIUsagePolicyPanel } from '@/components/security/AIUsagePolicyPanel';
 
 function PolicySection({
   title,
@@ -39,14 +40,18 @@ export default function AdminSecurityPage() {
       <div>
         <PageHeader
           title="セキュリティ設定"
-          description="トークンパス・監査・ファイルアップロード・AI回答のセキュリティポリシー（参照用）"
+          description="企業別AI利用制限・緊急停止・監査・ファイル・機密アクセスを管理します"
         />
 
         <div className="mb-6 flex items-center gap-3 rounded-lg border border-navy-200 bg-navy-50 px-4 py-3 text-sm text-navy-900">
           <ShieldCheck className="h-5 w-5 shrink-0" />
           <p>
-            本画面は現在のポリシー設定を表示します。本番環境では環境変数・DB設定から変更できるよう拡張予定です。
+            AI利用設定は企業ごとに適用されます。機密情報の検出時は設定にかかわらず外部送信を停止します。
           </p>
+        </div>
+
+        <div className="mb-8">
+          <AIUsagePolicyPanel />
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">

@@ -235,6 +235,25 @@ export interface DocumentChunkWithMeta extends DocumentChunk {
 /** /api/chat レスポンス構造 */
 export type ChatAnswerMode = 'internal' | 'general' | 'restricted';
 
+export interface AIUsagePolicy {
+  company_id: string;
+  general_ai_enabled: boolean;
+  emergency_stop: boolean;
+  monthly_request_limit: number;
+  daily_user_limit: number;
+  per_minute_limit: number;
+  max_input_chars: number;
+  max_output_chars: number;
+  allow_internal_context: boolean;
+  updated_at: string;
+}
+
+export interface AIUsageSummary {
+  monthly_used: number;
+  daily_user_used: number;
+  minute_used: number;
+}
+
 export interface ChatAssistantPayload {
   answer: string;
   rationale: string;

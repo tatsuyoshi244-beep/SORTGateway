@@ -33,6 +33,16 @@
 - IP / User-Agent recorded when configured
 - Retention: 365 days (policy display; enforcement via ops)
 
+## General AI Governance
+
+- General AI is disabled by default for every company.
+- Company admins control monthly, per-user daily, per-company minute, input and output limits.
+- Usage is reserved atomically in Supabase before calling an external model.
+- If durable usage accounting is unavailable, external AI calls fail closed.
+- Emergency stop blocks general AI while keeping authorized internal search available.
+- Internal knowledge context is never sent to an external model (`allow_internal_context = false`).
+- External model output is scanned for likely credentials and personal data before display.
+
 ## API Errors
 
 - Unified format: `{ error: { code, message, details? } }`
@@ -43,5 +53,5 @@
 1. Enable Supabase RLS on all tables
 2. Replace session header with JWT-only auth
 3. KMS for integration credentials
-4. WAF / rate limiting on `/api/chat`
+4. Add Vercel WAF as an outer layer in addition to application quotas on `/api/chat`
 5. PII masking on CSV exports

@@ -14,7 +14,7 @@
 | `NEXT_PUBLIC_SUPABASE_URL` | **Prod** | Supabase URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **Prod** | Anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Prod** | Server-side admin |
-| `OPENAI_API_KEY` | Recommended | Real AI responses; missing → mock + `/api/ready` warning |
+| `OPENAI_API_KEY` | Optional | General AI responses; configure only after Phase 16 and company policy setup |
 | `CRON_SECRET` | **Prod** | Scheduled sync auth |
 | `INTEGRATION_CREDENTIALS_KEY` | Recommended | Credential encryption |
 | `BUILD_SHA` / `BUILD_TIME` | Optional | Build metadata |
@@ -48,6 +48,10 @@ supabase/production-setup.sql
 6. `schema-phase9-scheduling.sql`
 7. `schema-phase10-analytics.sql`
 8. `schema-phase12-production.sql` (schema version + Storage bucket)
+9. `schema-phase13-login-identifiers.sql`
+10. `schema-phase14-identity-onboarding.sql`
+11. `schema-phase15-meeting-minutes.sql`
+12. `schema-phase16-ai-governance.sql` (company AI policy + atomic quotas)
 
 ### Initial data
 
@@ -114,8 +118,12 @@ Ready when all checks pass:
 | `auth` | Supabase Auth configured |
 | `storage_bucket` | `documents` bucket exists |
 | `cron_secret` | `CRON_SECRET` set |
-| `schema_version` | Latest migration = `phase10` |
+| `schema_version` | Latest migration = `phase16` |
 | `openai` | Optional; missing adds **warning** |
+
+`OPENAI_API_KEY` を設定しても、一般AIは自動では有効になりません。Phase 16適用後に管理者の
+「セキュリティ設定」で企業ポリシーを有効化してください。利用回数をDBへ永続記録できない場合、
+外部AI送信は安全側に停止します。
 
 ## Build
 

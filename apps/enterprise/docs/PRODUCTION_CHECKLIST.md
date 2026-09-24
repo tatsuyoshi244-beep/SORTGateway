@@ -29,6 +29,10 @@ supabase/production-setup.sql
 6. `schema-phase9-scheduling.sql`
 7. `schema-phase10-analytics.sql`
 8. `schema-phase12-production.sql`
+9. `schema-phase13-login-identifiers.sql`
+10. `schema-phase14-identity-onboarding.sql`
+11. `schema-phase15-meeting-minutes.sql`
+12. `schema-phase16-ai-governance.sql`
 
 適用後の確認:
 
@@ -36,7 +40,7 @@ supabase/production-setup.sql
 SELECT version, description, applied_at
 FROM schema_migrations
 ORDER BY applied_at;
--- 最新が phase10 であること
+-- 最新が phase16 であること
 ```
 
 ## 3. Storage バケット
@@ -84,7 +88,7 @@ Root Directory: **`apps/enterprise`**
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ | ✅ | Supabase URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | ✅ | Anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✅ | ✅ | Service role（秘密） |
-| `OPENAI_API_KEY` | ✅ 推奨 | 任意 | 未設定時はモック回答 + `/api/ready` 警告 |
+| `OPENAI_API_KEY` | Phase 16後に任意 | 任意 | 一般AI用。社内検索だけなら不要 |
 | `CRON_SECRET` | ✅ 必須 | ✅ | 定期同期ジョブ認証 |
 | `INTEGRATION_CREDENTIALS_KEY` | ✅ 推奨 | 任意 | 連携資格情報の暗号化 |
 | `NEXT_PUBLIC_APP_VERSION` | 任意 | 任意 | UI 表示用 |
@@ -104,9 +108,16 @@ Vercel → Settings → Environment Variables に `CRON_SECRET` を設定。
 
 ## 9. OPENAI_API_KEY
 
+- [ ] `schema-phase16-ai-governance.sql` が適用済み
+- [ ] 管理者 → セキュリティ設定で月次・個人日次・分間・文字数上限を確認
+- [ ] 初期状態が「一般AI 無効」であることを確認
 - [ ] OpenAI ダッシュボードで本番用キーを発行
 - [ ] Vercel に `OPENAI_API_KEY` を設定
-- [ ] 未設定の場合: アプリは起動するが AI はモック、`/api/ready` に警告
+- [ ] 管理者が一般AIを有効化し、利用回数が記録されることを確認
+- [ ] 緊急停止後は一般AIだけが停止し、社内ナレッジ検索は継続することを確認
+
+Phase 16未適用、利用回数DBへ接続不能、または企業ポリシー無効の場合は、APIキーが存在しても
+外部AIへ送信しません。
 
 ## 10. Vercel デプロイ
 
@@ -120,7 +131,7 @@ vercel deploy --prod
 ## 11. 本番 URL 確認
 
 - [ ] `https://<your-app>.vercel.app/api/health` → `{ "status": "ok" }`
-- [ ] `https://<your-app>.vercel.app/api/ready` → `ready: true`, `schema_version: "phase10"`
+- [ ] `https://<your-app>.vercel.app/api/ready` → `ready: true`, `schema_version: "phase16"`
 - [ ] ログインページにデモアカウント一覧が **表示されない**
 - [ ] Supabase Auth で admin ログイン成功
 - [ ] `/admin/system` でバージョン・ビルド情報を確認
@@ -135,6 +146,8 @@ vercel deploy --prod
 - [ ] デモパスワード `SortGateway2026!` でログインできない
 - [ ] `CRON_SECRET` なしでは cron API が 503
 - [ ] `service_role` キーがクライアントバンドルに含まれていない
+- [ ] AI利用枠の予約が上限超過時に拒否される
+- [ ] 外部AI出力に秘密情報らしき文字列がある場合は表示を遮断する
 
 ## 関連ドキュメント
 

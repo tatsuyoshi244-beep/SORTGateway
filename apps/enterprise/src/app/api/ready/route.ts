@@ -4,6 +4,7 @@ import {
   evaluateDemoReadiness,
   evaluateDevelopmentReadiness,
   evaluateProductionReadiness,
+  EXPECTED_SCHEMA_VERSION,
   readinessMode,
 } from '@/lib/observability/readiness';
 import { promises as fs } from 'fs';
@@ -39,7 +40,7 @@ export async function GET() {
         checks: result.checks,
         warnings: result.warnings,
         schema_version: result.schema_version,
-      expected_schema_version: 'phase14',
+        expected_schema_version: EXPECTED_SCHEMA_VERSION,
       },
       { status: result.ready ? 200 : 503 }
     );

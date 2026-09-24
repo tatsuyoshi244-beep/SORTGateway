@@ -198,3 +198,7 @@ FOR UPDATE TO authenticated USING (
   company_id = (SELECT company_id FROM public.users WHERE id = auth.uid())
   AND reviewed_by = auth.uid()
 );
+
+INSERT INTO public.schema_migrations (version, description)
+VALUES ('phase15', 'Department meeting minutes and cross-department approval')
+ON CONFLICT (version) DO NOTHING;

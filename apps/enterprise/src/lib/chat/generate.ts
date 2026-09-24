@@ -9,6 +9,10 @@ import {
   filterGeneralHistory,
   type ChatHistoryTurn,
 } from '@/lib/chat/policy';
+import {
+  AI_USAGE_BLOCK_MESSAGES,
+  type AIUsageBlockReason,
+} from '@/lib/ai/policy';
 
 const NO_KNOWLEDGE_WARNING =
   '登録された社内ナレッジ・ドキュメントに該当する情報が見つかりませんでした。推測による回答は行っていません。担当者検索またはドキュメント管理をご確認ください。';
@@ -206,6 +210,20 @@ function buildGeneralUnavailablePayload(): ChatAssistantPayload {
   };
 }
 
+export function buildAIUsageBlockedPayload(reason: AIUsageBlockReason): ChatAssistantPayload {
+  return {
+    answer: AI_USAGE_BLOCK_MESSAGES[reason],
+    rationale: '企業のAI利用ポリシーに基づき、外部AIへの送信を停止しました。',
+    sources: [],
+    references: [],
+    document_references: [],
+    warnings: ['入力内容は外部AIへ送信されていません。'],
+    has_knowledge: false,
+    answer_mode: 'restricted',
+    quality: EMPTY_QUALITY,
+  };
+}
+
 async function buildGeneralOpenAIPayload(
   question: string,
   history: ChatHistoryTurn[]
@@ -271,7 +289,8 @@ async function buildGeneralOpenAIPayload(
 export async function generateChatResponse(
   question: string,
   rag: RagSearchResult,
-  history: ChatHistoryTurn[] = []
+  history: ChatHistoryTurn[] = [],
+  options: { allowExternalInternalContext?: boolean } = {}
 ): Promise<ChatAssistantPayload> {
   const mode = decideChatAnswerMode(question, rag);
   if (mode === 'restricted') return buildRestrictedPayload(question);
@@ -284,7 +303,11 @@ export async function generateChatResponse(
     }
   }
 
-  if (isOpenAIConfigured() && allowsExternalInternalContext()) {
+  if (
+    isOpenAIConfigured() &&
+    allowsExternalInternalContext() &&
+    options.allowExternalInternalContext === true
+  ) {
     try {
       return await buildOpenAIPayload(question, rag);
     } catch {
