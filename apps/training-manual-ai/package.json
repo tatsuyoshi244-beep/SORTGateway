@@ -1,0 +1,16 @@
+{
+  "name": "training-manual-ai",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "dev:local": "wrangler dev --config wrangler.local.jsonc --local",
+    "db:migrate:local": "wrangler d1 migrations apply training-manual-ai-local --local --config wrangler.local.jsonc",
+    "db:migrate:remote": "wrangler d1 migrations apply training-manual-ai --remote",
+    "deploy": "wrangler deploy",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "wrangler": "^4.38.0"
+  }
+}

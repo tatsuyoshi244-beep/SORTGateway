@@ -1,0 +1,7 @@
+ENVIRONMENT=development
+LOCAL_DEV_EMAIL=owner@example.test
+LOCAL_DEV_NAME=テスト管理者
+INITIAL_ADMIN_EMAIL=owner@example.test
+INITIAL_ADMIN_NAME=テスト管理者
+ALLOWED_EMAIL_DOMAIN=example.test
+COMPANY_NAME=研修デモ会社

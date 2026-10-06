@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#102238">
+  <meta name="description" content="社内マニュアルを登録し、用途から探せる新人研修ガイド。">
+  <title>研修マニュアル AIガイド</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%230a8580'/%3E%3Cpath d='M12 10h16v3H12zm0 7h16v3H12zm0 7h16v3H12z' fill='white'/%3E%3C/svg%3E">
+  <style>
+    :root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;color:#162638;background:#f3f6f8;font-size:16px;line-height:1.6;--navy:#102238;--teal:#087e7a;--line:#dce4e8;--muted:#637487;--white:#fff;--gold:#f1bd5a}
+    *{box-sizing:border-box}body{margin:0}.top{background:var(--navy);color:#fff;padding:15px max(18px,calc((100vw - 980px)/2));display:flex;align-items:center;justify-content:space-between;gap:14px}.brand{font-size:18px;font-weight:750;letter-spacing:.02em}.brand small{display:block;font-size:12px;font-weight:500;color:#b7c6d3}.topright{display:flex;gap:9px;align-items:center}.who{font-size:13px;color:#d6e1e8}.wrap{max-width:980px;margin:auto;padding:22px 18px 56px}.intro{margin:8px 0 20px}.intro h1{font-size:clamp(24px,5vw,34px);line-height:1.3;margin:0 0 6px}.intro p{margin:0;color:var(--muted)}.box,.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin:14px 0;box-shadow:0 4px 16px #10223808}.ask{display:flex;gap:10px}.ask input{flex:1;min-width:0}.input, input,textarea,select{width:100%;border:1px solid #cbd6dc;border-radius:10px;background:#fff;padding:11px 12px;font:inherit;color:inherit}.input:focus,input:focus,textarea:focus{outline:3px solid #087e7a28;border-color:var(--teal)}button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 15px;font-weight:650}.primary{background:var(--teal);color:white}.secondary{background:#eaf0f3;color:#24374a}.danger{background:#fff0ed;color:#883b30}.tiny{padding:7px 10px;font-size:14px}.hint{font-size:14px;color:var(--muted);margin:9px 0 0}.heading{font-size:19px;margin:0 0 12px}.bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:22px 0 8px}.answer{white-space:pre-wrap;border-left:4px solid var(--teal);padding:8px 12px;margin:8px 0 12px;background:#f3fbfa;border-radius:0 9px 9px 0}.source{background:#f7f9fb;border:1px solid var(--line);padding:10px 12px;border-radius:10px;margin:8px 0}.source h3{font-size:16px;margin:0 0 4px}.source p{margin:4px 0;color:#32465a;white-space:pre-wrap}.pill{display:inline-block;border-radius:99px;background:#e7f4f2;color:#096966;padding:2px 9px;font-size:13px;margin-right:6px}.actions{display:flex;gap:8px;flex-wrap:wrap}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.wide{grid-column:1/-1}label{display:block;font-weight:650;font-size:14px;margin:0 0 5px}textarea{min-height:120px;resize:vertical}.filebox{border:1px dashed #9ab1b8;border-radius:12px;background:#f8fbfb;padding:13px}.attachments{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.attachment{font-size:13px;background:#eff5f6;border:1px solid var(--line);border-radius:8px;padding:5px 8px}.manualmeta{color:var(--muted);font-size:14px}.empty{color:var(--muted);padding:14px}.hide{display:none!important}.status{margin:8px 0;color:#086b55;font-size:14px}.err{color:#a23b31}.login{max-width:440px;margin:7vh auto;padding:22px}.login h1{font-size:25px}.login form{display:grid;gap:12px}.login label{margin-bottom:-7px}.managebar{display:flex;gap:8px}.modal{position:fixed;inset:0;background:#10223888;z-index:5;display:grid;place-items:center;padding:16px;overflow:auto}.modal>section{width:min(760px,100%);max-height:95vh;overflow:auto}.foot{font-size:13px;color:var(--muted);margin-top:24px}@media(max-width:620px){.top{padding:13px 15px}.wrap{padding:17px 13px 40px}.box,.card{padding:15px;border-radius:13px}.ask{display:grid;grid-template-columns:1fr auto}.grid{grid-template-columns:1fr}.wide{grid-column:auto}.who{display:none}.bar{align-items:flex-start}.managebar{flex-direction:column}}
+  </style>
+</head>
+<body>
+  <header class="top"><div class="brand">研修マニュアル AIガイド<small>必要な手順を、必要なときに。</small></div><div class="topright"><span id="who" class="who"></span><button id="login-open" class="secondary tiny">ログイン</button><button id="logout" class="secondary tiny hide">ログアウト</button></div></header>
+  <main class="wrap">
+    <section id="login-view" class="box login">
+      <h1 id="auth-title">会社のメールでログイン</h1><p id="auth-copy" class="hint">Cloudflare Accessのワンタイムコードで本人確認します。社員一覧に登録されたメールアドレスだけが利用できます。</p>
+      <p id="login-status" class="status" role="status"></p><a id="access-login" class="primary" style="display:inline-block;text-decoration:none" href="/">メールでログイン</a>
+    </section>
+    <div id="app" class="hide">
+      <section class="intro"><h1>何をするときの手順を探していますか？</h1><p>普段の言葉で質問すると、登録されたマニュアルから関連箇所を探します。</p></section>
+      <section class="box"><form id="ask-form" class="ask"><input id="query" aria-label="用途・質問" placeholder="例：出勤したあと、開店までに何をすればいい？" required><button class="primary">探す</button></form><p class="hint">回答には参照したマニュアルを表示します。大切な判断は原本と責任者に確認してください。</p><div id="answer-area" class="hide"></div></section>
+      <div class="bar"><h2 class="heading">登録マニュアル</h2><button id="new-manual" class="primary hide">＋ マニュアルを追加</button></div>
+      <div id="manual-list"></div>
+      <section id="users-section" class="box hide"><div class="bar"><h2 class="heading">社員アカウント</h2><button id="new-user" class="secondary">社員を追加</button></div><div id="user-list"></div></section>
+      <p class="foot">マニュアルの本文・質問は会社専用のCloudflare保存領域に保管します。AI検索を有効にした場合、質問と検索された本文の一部が回答生成に使われます。</p>
+    </div>
+  </main>
+  <div id="manual-modal" class="modal hide"><section class="box"><div class="bar"><h2 class="heading">マニュアルを追加</h2><button class="secondary" data-close="manual-modal">閉じる</button></div><form id="manual-form" class="grid">
+    <div><label for="m-title">マニュアル名</label><input id="m-title" required maxlength="120" placeholder="例：開店前の準備"></div><div><label for="m-category">分野</label><input id="m-category" required maxlength="80" placeholder="店舗業務"></div>
+    <div class="wide"><label for="m-summary">どんなときに使う？</label><input id="m-summary" required maxlength="300" placeholder="出勤後、営業開始までの作業"></div><div class="wide"><label for="m-keywords">検索キーワード（読点区切り）</label><input id="m-keywords" placeholder="出勤、開店、準備"></div>
+    <div class="wide"><label for="m-body">本文を貼り付ける</label><textarea id="m-body" maxlength="200000" placeholder="紙のマニュアルからコピーした文章や、共有された手順を貼り付けてください。画像をコピーしている場合は、この欄に貼り付けても添付できます。"></textarea></div>
+    <div class="wide"><label for="m-files">元資料を添付（PDF・Word・Excel・PowerPoint・画像・テキスト）</label><div id="dropzone" class="filebox">ファイルを選択、またはPCからここへドロップ<input id="m-files" type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv,.png,.jpg,.jpeg,.webp,image/*"></div><div id="file-list" class="attachments"></div><p class="hint">添付ファイルは開いて確認できます。検索対象にする文章は本文欄にも貼り付けてください。</p></div>
+    <div class="wide"><label for="m-caution">注意点・相談先</label><textarea id="m-caution" maxlength="2000" placeholder="迷ったときの相談先、例外時の対応など"></textarea></div>
+    <div class="wide actions"><button class="primary">共有して登録</button><button type="button" class="secondary" data-close="manual-modal">キャンセル</button></div><p id="manual-status" class="status wide" role="status"></p>
+  </form></section></div>
+  <div id="user-modal" class="modal hide"><section class="box"><div class="bar"><h2 class="heading">社員アカウントを追加</h2><button class="secondary" data-close="user-modal">閉じる</button></div><form id="user-form" class="grid"><div><label for="u-name">社員名</label><input id="u-name" required></div><div><label for="u-id">会社メールアドレス</label><input id="u-id" type="email" required autocomplete="off"></div><div><label for="u-role">権限</label><select id="u-role"><option value="employee">閲覧・質問</option><option value="editor">マニュアル追加・閲覧</option><option value="admin">管理者</option></select></div><div class="wide actions"><button class="primary">社員を登録</button></div><p id="user-status" class="status wide" role="status"></p></form></section></div>
+  <script src="/app.js" defer></script>
+</body>
+</html>
